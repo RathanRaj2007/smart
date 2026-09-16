@@ -1,0 +1,174 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [vector]
+}
+
+model User {
+  id           Int                @id @default(autoincrement())
+  username     String             @unique
+  passwordHash String
+  role         String             @default("INTERVIEWER")
+  createdAt    DateTime           @default(now())
+  documents    Document[]
+  sessions     InterviewSession[]
+  auditLogs    AuditLog[]
+}
+
+model Document {
+  id               Int             @id @default(autoincrement())
+  name             String
+  originalFilename String
+  fileType         String
+  fileSize         Int
+  storagePath      String
+  status           String
+  userId           Int
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  branch           String?
+  institution      String?
+  semester         String?
+  subject          String?
+  user             User            @relation(fields: [userId], references: [id])
+  chunks           DocumentChunk[]
+
+  @@index([userId])
+  @@index([subject])
+}
+
+model DocumentChunk {
+  id         Int                    @id @default(autoincrement())
+  documentId Int
+  content    String
+  chunkIndex Int
+  createdAt  DateTime               @default(now())
+  embedding  Unsupported("vector")?
+  pageNumber Int?
+  sourceType String?
+  topic      String?
+  unit       String?
+  document   Document               @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([documentId])
+  @@index([chunkIndex])
+  @@index([topic])
+}
+
+model Candidate {
+  id        String             @id @default(uuid())
+  name      String
+  email     String?
+  createdAt DateTime           @default(now())
+  sessions  InterviewSession[]
+}
+
+model InterviewSession {
+  id            String           @id @default(uuid())
+  candidateId   String
+  interviewerId Int?
+  status        String           @default("active")
+  difficulty    String           @default("medium")
+  interviewType String
+  scope         Json?
+  score         Float?
+  topicsCovered String[]
+  weakTopics    String[]
+  strongTopics  String[]
+  startedAt     DateTime         @default(now())
+  endedAt       DateTime?
+  report        InterviewReport?
+  candidate     Candidate        @relation(fields: [candidateId], references: [id])
+  interviewer   User?            @relation(fields: [interviewerId], references: [id])
+  gaps          KnowledgeGap[]
+  questions     Question[]
+}
+
+model Question {
+  id               String           @id @default(uuid())
+  sessionId        String
+  questionNumber   Int
+  content          String
+  type             String
+  difficulty       String
+  topic            String?
+  expectedAnswer   String?
+  coreConcepts     String[]
+  requiredKeywords String[]
+  askedAt          DateTime         @default(now())
+  answer           Answer?
+  session          InterviewSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+}
+
+model Answer {
+  id         String            @id @default(uuid())
+  questionId String            @unique
+  transcript String
+  audioPath  String?
+  duration   Int?
+  answeredAt DateTime          @default(now())
+  question   Question          @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  evaluation AnswerEvaluation?
+}
+
+model AnswerEvaluation {
+  id                String   @id @default(uuid())
+  answerId          String   @unique
+  score             Float
+  correctness       String
+  completeness      String
+  relevance         String
+  technicalAccuracy String
+  mentionedKeywords String[]
+  missingKeywords   String[]
+  feedback          String
+  answer            Answer   @relation(fields: [answerId], references: [id], onDelete: Cascade)
+}
+
+model KnowledgeGap {
+  id         String           @id @default(uuid())
+  sessionId  String
+  concept    String
+  confidence String
+  evidence   String
+  session    InterviewSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+}
+
+model InterviewReport {
+  id               String           @id @default(uuid())
+  sessionId        String           @unique
+  overallScore     Float
+  topicScores      Json
+  strengths        String[]
+  weaknesses       String[]
+  executiveSummary String
+  improvementPlan  String
+  createdAt        DateTime         @default(now())
+  session          InterviewSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  userId     Int?
+  username   String?
+  action     String
+  entityType String?
+  entityId   String?
+  status     String   @default("SUCCESS")
+  metadata   Json?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@index([userId])
+  @@index([action])
+  @@index([entityType, entityId])
+}
+
