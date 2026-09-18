@@ -33,13 +33,22 @@ export async function searchChunks(
     throw new Error('Search query cannot be empty')
   }
 
+  // If documentIds filter is explicitly provided but empty, enforce hard boundary: return 0 results
+  if (documentIds !== undefined) {
+    const validIds = documentIds.filter((id) => typeof id === 'number' && !isNaN(id))
+    if (validIds.length === 0) {
+      return []
+    }
+  }
+
   // Generate query embedding using the SAME model as document embeddings
   const queryEmbedding = await generateEmbedding(query)
   const vectorStr = `[${queryEmbedding.join(',')}]`
   
   let docFilter = ''
   if (documentIds && documentIds.length > 0) {
-    const ids = documentIds.join(',')
+    const validIds = documentIds.filter((id) => typeof id === 'number' && !isNaN(id))
+    const ids = validIds.join(',')
     docFilter = `AND d."id" IN (${ids})`
   }
 

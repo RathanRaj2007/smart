@@ -82,9 +82,39 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Fetch session scope to respect mode, material, keywords, or selected Knowledge Base documents
+    const sessionObj = await prisma.interviewSession.findUnique({ where: { id: sessionId } });
+    const scope = (sessionObj?.scope as Record<string, unknown>) || {};
+    const mode = (scope.mode as string) || "standard";
+    const setupData = (scope.setupData as string) || "";
+    const isKnowledgeMode = mode === "knowledge" || mode === "knowledge-base";
+    let selectedDocIds: number[] | undefined = undefined;
+
+    if (isKnowledgeMode) {
+      if (Array.isArray(scope.selectedDocumentIds)) {
+        selectedDocIds = (scope.selectedDocumentIds as unknown[]).map(Number).filter(id => !isNaN(id));
+      } else if (typeof setupData === "string" && setupData.trim()) {
+        try {
+          const parsed = JSON.parse(setupData);
+          if (Array.isArray(parsed)) {
+            selectedDocIds = parsed.map(Number).filter(id => !isNaN(id));
+          }
+        } catch {
+          // ignore parse error
+        }
+      }
+    }
+
     if (!answer || !await prisma.answerEvaluation.findUnique({ where: { answerId: answer.id } })) {
       // 3. RAG Retrieval for Evaluation Context
-      const searchResults = await searchChunks(question.content + " " + transcript, 5);
+      let searchResults: Awaited<ReturnType<typeof searchChunks>> = [];
+      if (isKnowledgeMode) {
+        searchResults = await searchChunks(question.content + " " + transcript, userSession.userId, 5, selectedDocIds);
+      } else if (mode === "keywords") {
+        searchResults = await searchChunks(`[${scope.subject || ''}] ${setupData} ${question.content}`, userSession.userId, 5);
+      } else {
+        searchResults = await searchChunks(question.content + " " + transcript, userSession.userId, 5);
+      }
       const contextText = searchResults.map(r => r.content).join("\n\n");
 
       // 4. Parallel AI Analysis - Evaluate Answer
@@ -168,20 +198,15 @@ export async function POST(req: NextRequest) {
     // 6. Adaptive Question Engine - Decide Next Question SUGGESTIONS
     const nextParams = await determineNextQuestionParams(sessionId);
     
-    // Fetch session scope to respect material or keywords
-    const sessionObj = await prisma.interviewSession.findUnique({ where: { id: sessionId } });
-    const scope = sessionObj?.scope as Record<string, unknown> || {};
-    const mode = scope.mode || "standard";
-    const setupData = scope.setupData || "";
-
     let contextTextNext = "";
-    if (mode === "material") {
-      contextTextNext = "RESTRICT ALL QUESTIONS TO THIS MATERIAL:\n" + setupData;
-    } else if (mode === "keywords") {
-      const searchResultsNext = await searchChunks(`[${scope.subject}] ${setupData} ${question.content}`, 3);
+    if (mode === "keywords") {
+      const searchResultsNext = await searchChunks(`[${scope.subject || ''}] ${setupData} ${question.content}`, userSession.userId, 3);
       contextTextNext = "FOCUS STRICTLY ON THESE KEYWORDS: " + setupData + "\n\n" + searchResultsNext.map(r => r.content).join("\n\n");
+    } else if (isKnowledgeMode) {
+      const searchResultsNext = await searchChunks(question.content, userSession.userId, 10, selectedDocIds);
+      contextTextNext = "RESTRICT ALL QUESTIONS STRICTLY TO THE FOLLOWING KNOWLEDGE BASE MATERIAL ONLY. DO NOT ASK ANYTHING OUTSIDE THIS MATERIAL:\n\n" + searchResultsNext.map(r => r.content).join("\n\n");
     } else {
-      const searchResultsNext = await searchChunks(question.content, 3);
+      const searchResultsNext = await searchChunks(question.content, userSession.userId, 3);
       contextTextNext = searchResultsNext.map(r => r.content).join("\n\n");
     }
     

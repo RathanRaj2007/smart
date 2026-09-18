@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "concurrently \"next dev\" \"node scripts/warmup.mjs\"",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
@@ -37,6 +37,7 @@
     "@types/node": "^22.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "concurrently": "^10.0.5",
     "eslint": "^9.0.0",
     "eslint-config-next": "^15.3.3",
     "prisma": "^6.3.0",

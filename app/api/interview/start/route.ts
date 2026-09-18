@@ -33,6 +33,44 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const isKnowledgeMode = mode === "knowledge" || mode === "knowledge-base";
+    let selectedDocIds: number[] | undefined = undefined;
+
+    if (isKnowledgeMode) {
+      try {
+        if (typeof setupData === "string" && setupData.trim()) {
+          const parsed = JSON.parse(setupData);
+          if (Array.isArray(parsed)) {
+            selectedDocIds = parsed.map(id => Number(id)).filter(id => !isNaN(id));
+          }
+        } else if (Array.isArray(setupData)) {
+          selectedDocIds = setupData.map(id => Number(id)).filter(id => !isNaN(id));
+        }
+      } catch {
+        // ignore JSON parse error
+      }
+
+      if (!selectedDocIds || selectedDocIds.length === 0) {
+        return NextResponse.json({ error: "Please select at least one document for Knowledge Base mode." }, { status: 400 });
+      }
+
+      // Verify that all selected documents exist and belong to the user
+      const existingDocs = await prisma.document.findMany({
+        where: {
+          id: { in: selectedDocIds },
+          userId: userId
+        },
+        select: { id: true }
+      });
+
+      if (existingDocs.length === 0) {
+        return NextResponse.json({ error: "The selected Knowledge Base documents were not found or are no longer available." }, { status: 400 });
+      }
+
+      // Use valid doc IDs only
+      selectedDocIds = existingDocs.map(d => d.id);
+    }
+
     // Create Candidate
     const candidate = await prisma.candidate.create({
       data: { name: candidateName }
@@ -46,7 +84,12 @@ export async function POST(req: NextRequest) {
         status: "active",
         difficulty: "medium",
         interviewType: "Adaptive",
-        scope: { subject: subject, mode: mode || "standard", setupData: setupData || "" }
+        scope: {
+          subject: subject,
+          mode: mode || "standard",
+          setupData: setupData || "",
+          selectedDocumentIds: selectedDocIds || null
+        }
       }
     });
 
@@ -57,33 +100,20 @@ export async function POST(req: NextRequest) {
       action: 'INTERVIEW_CREATED',
       entityType: 'InterviewSession',
       entityId: session.id,
-      metadata: { candidateName, subject, mode: mode || 'standard' }
+      metadata: { candidateName, subject, mode: mode || 'standard', selectedDocumentIds: selectedDocIds }
     });
 
     let contextText = "";
     let topicToStart = "Fundamentals";
 
-    if (mode === "material" && setupData) {
-      // Bypass RAG, just use the provided material directly
-      contextText = "RESTRICT ALL QUESTIONS TO THIS MATERIAL:\n" + setupData;
-      topicToStart = "Material Based";
-    } else if (mode === "keywords" && setupData) {
+    if (mode === "keywords" && setupData) {
       // Focus on these keywords
       const searchResults = await searchChunks(`[${subject}] ${setupData}`, userId);
       contextText = "FOCUS STRICTLY ON THESE KEYWORDS: " + setupData + "\n\n" + searchResults.map(r => r.content).join("\n\n");
       topicToStart = "Keyword Focused";
-    } else if (mode === "knowledge-base") {
-      // Focus strictly on the uploaded knowledge base docx/files
-      // Use a broad query, but request more chunks to ensure we cover the KB
-      let docIds: number[] | undefined;
-      try {
-        if (setupData) {
-          docIds = JSON.parse(setupData);
-        }
-      } catch {
-        // ignore parse error
-      }
-      const searchResults = await searchChunks(`[${subject}]`, userId, 20, docIds);
+    } else if (isKnowledgeMode) {
+      // Focus strictly on the selected uploaded knowledge base documents
+      const searchResults = await searchChunks(`[${subject}]`, userId, 20, selectedDocIds);
       contextText = "RESTRICT ALL QUESTIONS STRICTLY TO THE FOLLOWING KNOWLEDGE BASE MATERIAL ONLY. DO NOT ASK ANYTHING OUTSIDE THIS MATERIAL:\n\n" + searchResults.map(r => r.content).join("\n\n");
       topicToStart = "Knowledge Base Based";
     } else {

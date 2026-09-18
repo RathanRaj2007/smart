@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import Icon from '@/components/Icon'
+import { formatScore } from '@/lib/formatters'
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -310,19 +311,19 @@ export default function AdminAnalyticsPage() {
             <div style={{ backgroundColor: 'var(--color-bg-secondary)', padding: '1rem', borderRadius: '8px', border: '1px solid var(--color-card-border)' }}>
               <div style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)' }}>Average Score</div>
               <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#6366f1', marginTop: '0.25rem' }}>
-                {Math.round(scores.averageScore * 10)}%
+                {formatScore(scores.averageScore)}
               </div>
             </div>
             <div style={{ backgroundColor: 'var(--color-bg-secondary)', padding: '1rem', borderRadius: '8px', border: '1px solid var(--color-card-border)' }}>
               <div style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)' }}>Highest Score</div>
               <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#10b981', marginTop: '0.25rem' }}>
-                {scores.highestScore !== null ? Math.round(scores.highestScore * 10) : 0}%
+                {formatScore(scores.highestScore)}
               </div>
             </div>
             <div style={{ backgroundColor: 'var(--color-bg-secondary)', padding: '1rem', borderRadius: '8px', border: '1px solid var(--color-card-border)' }}>
               <div style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)' }}>Lowest Score</div>
               <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#ef4444', marginTop: '0.25rem' }}>
-                {scores.lowestScore !== null ? Math.round(scores.lowestScore * 10) : 0}%
+                {formatScore(scores.lowestScore)}
               </div>
             </div>
             <div style={{ backgroundColor: 'var(--color-bg-secondary)', padding: '1rem', borderRadius: '8px', border: '1px solid var(--color-card-border)' }}>
@@ -410,10 +411,10 @@ export default function AdminAnalyticsPage() {
                       <td style={{ padding: '0.75rem 1rem' }}>
                         {user.averageScore !== null ? (
                           <span style={{ fontWeight: 600, color: '#6366f1' }}>
-                            {Math.round(user.averageScore * 10)}%
+                            {formatScore(user.averageScore)}
                           </span>
                         ) : (
-                          <span style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem' }}>N/A</span>
+                          <span style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem' }}>—</span>
                         )}
                       </td>
                     </tr>

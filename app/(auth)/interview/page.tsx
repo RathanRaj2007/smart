@@ -89,7 +89,7 @@ export default function InterviewPage() {
   const startInterview = async () => {
     setIsProcessing(true);
     let finalSetupData = setupData;
-    if (setupMode === 'knowledge-base') {
+    if (setupMode === 'knowledge-base' || setupMode === 'knowledge') {
       finalSetupData = JSON.stringify(selectedDocIds);
     }
     
@@ -101,10 +101,16 @@ export default function InterviewPage() {
           candidateName: "Guest Candidate",
           subject: "Data Structures and Algorithms",
           mode: setupMode,
-          setupData: finalSetupData
+          setupData: finalSetupData,
+          selectedDocumentIds: selectedDocIds
         })
       });
       const data = await res.json();
+      if (!res.ok) {
+        alert("Failed to start interview: " + (data.error || "Unknown error"));
+        setIsProcessing(false);
+        return;
+      }
       if (data.sessionId) {
         setSession({ id: data.sessionId, candidateId: data.candidate.id });
         setCurrentQuestion(data.firstQuestion);
@@ -376,15 +382,20 @@ export default function InterviewPage() {
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
       
       {/* Header */}
-      <div style={{ padding: '1.5rem 2rem', borderBottom: '1px solid var(--color-card-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
-        <h1 style={{ margin: 0, color: 'var(--color-text-primary)', fontSize: '1.5rem' }}>Adaptive DSA Interview</h1>
+      <div style={{ padding: '1.5rem 2rem', borderBottom: '1px solid var(--color-card-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0, flexWrap: 'wrap', gap: '1rem' }}>
+        <div>
+          <h1 style={{ margin: 0, color: 'var(--color-text-primary)', fontSize: '1.5rem' }}>Adaptive Technical Interview</h1>
+          <p style={{ margin: '0.25rem 0 0 0', color: 'var(--color-text-secondary)', fontSize: '0.875rem' }}>
+            AI-powered interview that adapts to your skills and responses.
+          </p>
+        </div>
         {!session ? (
           <button 
             onClick={startInterview}
             disabled={isProcessing}
             style={{ padding: '0.8rem 1.5rem', background: '#6366f1', color: 'var(--color-text-primary)', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 600 }}
           >
-            {isProcessing ? 'Initializing...' : 'Start DSA Interview'}
+            {isProcessing ? 'Initializing...' : 'Start Technical Interview'}
           </button>
         ) : (
           <button 
@@ -428,13 +439,6 @@ export default function InterviewPage() {
                         <div style={{ color: 'var(--color-text-secondary)', fontSize: '0.8rem', marginTop: '0.25rem' }}>Limit questions to specific topics or keywords.</div>
                       </div>
                     </label>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '1rem', background: setupMode === 'material' ? 'rgba(99,102,241,0.1)' : 'rgba(255,255,255,0.03)', border: setupMode === 'material' ? '1px solid #6366f1' : '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', cursor: 'pointer' }}>
-                      <input type="radio" name="mode" value="material" checked={setupMode === 'material'} onChange={(e) => setSetupMode(e.target.value)} style={{ accentColor: '#6366f1' }} />
-                      <div>
-                        <div style={{ color: 'var(--color-text-primary)', fontWeight: 500 }}>Material Based</div>
-                        <div style={{ color: 'var(--color-text-secondary)', fontSize: '0.8rem', marginTop: '0.25rem' }}>Provide a handout/text block to restrict the interview entirely to that context.</div>
-                      </div>
-                    </label>
                     <label style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '1rem', background: setupMode === 'knowledge-base' ? 'rgba(99,102,241,0.1)' : 'rgba(255,255,255,0.03)', border: setupMode === 'knowledge-base' ? '1px solid #6366f1' : '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', cursor: 'pointer' }}>
                       <input type="radio" name="mode" value="knowledge-base" checked={setupMode === 'knowledge-base'} onChange={(e) => setSetupMode(e.target.value)} style={{ accentColor: '#6366f1' }} />
                       <div>
@@ -455,17 +459,6 @@ export default function InterviewPage() {
                       onChange={(e) => setSetupData(e.target.value)} 
                       placeholder="e.g. Arrays, Recursion, Time Complexity" 
                       style={{ width: '100%', padding: '0.8rem', borderRadius: '8px', border: '1px solid var(--color-card-border)', background: 'var(--color-bg-tertiary)', color: 'var(--color-text-primary)' }}
-                    />
-                  </div>
-                )}
-                {setupMode === 'material' && (
-                  <div>
-                    <label style={{ display: 'block', color: 'var(--color-text-secondary)', fontSize: '0.9rem', fontWeight: 500, marginBottom: '0.5rem' }}>Paste Reference Material</label>
-                    <textarea 
-                      value={setupData} 
-                      onChange={(e) => setSetupData(e.target.value)} 
-                      placeholder="Paste handout or context here..." 
-                      style={{ width: '100%', padding: '0.8rem', borderRadius: '8px', border: '1px solid var(--color-card-border)', background: 'var(--color-bg-tertiary)', color: 'var(--color-text-primary)', minHeight: '120px', resize: 'vertical' }}
                     />
                   </div>
                 )}
@@ -497,7 +490,7 @@ export default function InterviewPage() {
 
                 <button 
                   onClick={startInterview}
-                  disabled={isProcessing || ((setupMode === 'keywords' || setupMode === 'material') && !setupData.trim()) || (setupMode === 'knowledge-base' && selectedDocIds.length === 0)}
+                  disabled={isProcessing || (setupMode === 'keywords' && !setupData.trim()) || (setupMode === 'knowledge-base' && selectedDocIds.length === 0)}
                   style={{ marginTop: '1rem', padding: '1rem', background: '#6366f1', color: 'var(--color-text-primary)', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 600, fontSize: '1rem', width: '100%' }}
                 >
                   {isProcessing ? 'Initializing...' : 'Start Interview'}
@@ -696,74 +689,142 @@ export default function InterviewPage() {
         </div>
 
         {/* AI Assistant Panel */}
-        <div style={{ flex: 1, minWidth: '300px', background: 'var(--color-bg-tertiary)', borderLeft: '1px solid var(--color-card-border)', padding: '2rem', overflowY: 'auto' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '2rem' }}>
-            <Icon name="smart_toy" size={24} />
-            <h3 style={{ margin: 0, color: 'var(--color-text-primary)', fontSize: '1.1rem' }}>AI Assistant</h3>
+        <div style={{ flex: 1, minWidth: '300px', maxWidth: '420px', background: 'var(--color-bg-tertiary)', borderLeft: '1px solid var(--color-card-border)', padding: '1.5rem', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          
+          {/* Panel Header & Status Indicator */}
+          <div style={{ borderBottom: '1px solid var(--color-card-border)', paddingBottom: '1rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.35rem' }}>
+              <Icon name="smart_toy" size={24} style={{ color: '#6366f1' }} />
+              <h3 style={{ margin: 0, color: 'var(--color-text-primary)', fontSize: '1.1rem', fontWeight: 600 }}>AI Assistant</h3>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem', color: 'var(--color-text-secondary)' }}>
+              <span style={{
+                width: '8px',
+                height: '8px',
+                borderRadius: '50%',
+                backgroundColor: session ? '#10b981' : '#6366f1',
+                display: 'inline-block',
+                boxShadow: session ? '0 0 8px rgba(16, 185, 129, 0.6)' : 'none'
+              }} />
+              <span>{session ? 'Interview in progress' : 'Ready to assist'}</span>
+            </div>
           </div>
 
-          {session && (
-            <>
-              {/* Compact Stats */}
-              <div style={{ background: 'var(--color-bg-tertiary)', border: '1px solid var(--color-card-border)', borderRadius: '12px', padding: '1.5rem', marginBottom: '2rem' }}>
-                <div style={{ color: 'var(--color-text-secondary)', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '1rem' }}>Live Performance</div>
-                
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'end', marginBottom: '1.5rem' }}>
-                  <span style={{ color: 'var(--color-text-secondary)' }}>Overall Score</span>
-                  <span style={{ fontSize: '1.5rem', fontWeight: 700, color: avgScore >= 75 ? '#10b981' : (avgScore >= 50 ? '#f59e0b' : '#ef4444') }}>
-                    {evaluations.length === 0 ? '--' : `${avgScore}%`}
-                  </span>
-                </div>
+          {/* Current Question Context */}
+          <div style={{ background: 'var(--color-bg-secondary)', border: '1px solid var(--color-card-border)', borderRadius: '10px', padding: '1rem' }}>
+            <div style={{ color: 'var(--color-text-secondary)', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>
+              Current Question
+            </div>
+            <div style={{ color: 'var(--color-text-primary)', fontSize: '0.875rem', lineHeight: 1.4, fontStyle: currentQuestion?.content ? 'normal' : 'italic' }}>
+              {currentQuestion?.content ? (
+                currentQuestion.content.length > 140 ? `${currentQuestion.content.substring(0, 140)}...` : currentQuestion.content
+              ) : (
+                "Waiting for the next question..."
+              )}
+            </div>
+          </div>
 
-                {evaluations.length > 0 && evaluations[evaluations.length - 1].feedback && (
-                  <div style={{ fontSize: '0.85rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                    <div style={{ color: 'var(--color-text-secondary)' }}>
-                      <span style={{ color: 'var(--color-text-secondary)' }}>Latest Q:</span> {evaluations[evaluations.length - 1].feedback?.score}%
-                    </div>
-                    {((evaluations[evaluations.length - 1].feedback?.missingKeywords?.length) || 0) > 0 && (
-                      <div style={{ color: '#ef4444', lineHeight: 1.4 }}>
-                        <Icon name="warning" size={14} style={{ verticalAlign: 'middle', marginRight: '4px' }}/>
-                        Missing: {evaluations[evaluations.length - 1].feedback?.missingKeywords?.slice(0, 3).join(", ")}
-                      </div>
-                    )}
-                  </div>
-                )}
+          {/* AI Insights */}
+          <div style={{ background: 'var(--color-bg-secondary)', border: '1px solid var(--color-card-border)', borderRadius: '10px', padding: '1rem' }}>
+            <div style={{ color: 'var(--color-text-secondary)', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.75rem' }}>
+              AI Insights
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.825rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ color: 'var(--color-text-secondary)' }}>Difficulty</span>
+                <span style={{ color: 'var(--color-text-primary)', fontWeight: 500, textTransform: 'capitalize' }}>
+                  {currentQuestion?.difficulty || "Not available"}
+                </span>
               </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ color: 'var(--color-text-secondary)' }}>Topic</span>
+                <span style={{ color: 'var(--color-text-primary)', fontWeight: 500, textTransform: 'capitalize', maxWidth: '160px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {currentQuestion?.topic || (setupMode === 'keywords' && setupData ? setupData : "Adaptive / Technical")}
+                </span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ color: 'var(--color-text-secondary)' }}>Response Mode</span>
+                <span style={{ color: 'var(--color-text-primary)', fontWeight: 500 }}>
+                  {setupMode === 'standard' ? 'Standard Adaptive' : setupMode === 'keywords' ? 'Keyword Focused' : setupMode === 'knowledge-base' ? 'Knowledge Base' : 'Adaptive'}
+                </span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ color: 'var(--color-text-secondary)' }}>Answer Status</span>
+                <span style={{ color: isProcessing ? '#f59e0b' : isRecording ? '#ef4444' : isTranscribing ? '#818cf8' : suggestedQuestions.length > 0 ? '#10b981' : currentQuestion ? '#3b82f6' : 'var(--color-text-muted)', fontWeight: 500 }}>
+                  {isProcessing ? 'Evaluating answer...' : isRecording ? 'Recording answer...' : isTranscribing ? 'Transcribing...' : suggestedQuestions.length > 0 ? 'Choose next question' : currentQuestion ? 'Waiting for response' : 'Not started'}
+                </span>
+              </div>
+            </div>
+          </div>
 
-              {/* History Trace */}
-              <div>
-                <div style={{ color: 'var(--color-text-secondary)', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '1rem' }}>Interview History</div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+          {/* Interview Progress */}
+          <div style={{ background: 'var(--color-bg-secondary)', border: '1px solid var(--color-card-border)', borderRadius: '10px', padding: '1rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+              <div style={{ color: 'var(--color-text-secondary)', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                Interview Progress
+              </div>
+              <div style={{ color: '#818cf8', fontSize: '0.8rem', fontWeight: 600 }}>
+                {currentQuestion?.questionNumber ? `Question ${currentQuestion.questionNumber}` : session ? `Answered: ${evaluations.length}` : 'Not started'}
+              </div>
+            </div>
+            <div style={{ width: '100%', height: '6px', backgroundColor: 'var(--color-bg-tertiary)', borderRadius: '3px', overflow: 'hidden' }}>
+              <div style={{
+                height: '100%',
+                width: `${session ? Math.min(100, Math.max(10, ((evaluations.length + (currentQuestion ? 1 : 0)) / 10) * 100)) : 0}%`,
+                backgroundColor: '#6366f1',
+                borderRadius: '3px',
+                transition: 'width 0.3s ease'
+              }} />
+            </div>
+          </div>
+
+          {/* Live Performance & History Trace (Preserved) */}
+          {session && evaluations.length > 0 && (
+            <div style={{ background: 'var(--color-bg-secondary)', border: '1px solid var(--color-card-border)', borderRadius: '10px', padding: '1rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                <span style={{ color: 'var(--color-text-secondary)', fontSize: '0.8rem' }}>Live Average Score</span>
+                <span style={{ fontSize: '1.25rem', fontWeight: 700, color: avgScore >= 75 ? '#10b981' : (avgScore >= 50 ? '#f59e0b' : '#ef4444') }}>
+                  {avgScore}%
+                </span>
+              </div>
+              <details style={{ marginTop: '0.5rem' }}>
+                <summary style={{ fontSize: '0.8rem', color: '#818cf8', cursor: 'pointer' }}>
+                  View Answer History ({evaluations.length})
+                </summary>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.5rem' }}>
                   {evaluations.map((ev, idx) => (
-                    <details key={idx} style={{ background: 'var(--color-bg-tertiary)', borderRadius: '8px', padding: '0.5rem', border: '1px solid var(--color-card-border)' }}>
-                      <summary style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.85rem', cursor: 'pointer', listStyle: 'none' }}>
-                        <div style={{ color: (ev.feedback?.score || 0) >= 70 ? '#10b981' : '#f59e0b' }}>
-                          <Icon name={(ev.feedback?.score || 0) >= 70 ? 'check' : 'remove'} size={16} />
-                        </div>
-                        <div style={{ color: 'var(--color-text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1 }}>
-                          Q{idx + 1} — {ev.question}
-                        </div>
-                        <div style={{ color: 'var(--color-text-secondary)', fontWeight: 600 }}>{ev.feedback?.score}%</div>
-                      </summary>
-                      <div style={{ marginTop: '0.75rem', fontSize: '0.8rem', display: 'flex', flexDirection: 'column', gap: '0.5rem', color: 'var(--color-text-secondary)', borderTop: '1px solid var(--color-card-border)', paddingTop: '0.5rem' }}>
-                        <div><strong style={{ color: 'var(--color-text-secondary)' }}>Your Answer:</strong> <span style={{ fontStyle: 'italic' }}>{ev.answer}</span></div>
-                        <div><strong style={{ color: 'var(--color-text-secondary)' }}>Reason:</strong> {ev.feedback?.reason || ev.feedback?.correctness || "N/A"}</div>
-                        {ev.feedback?.missingKeywords && ev.feedback?.missingKeywords?.length > 0 && (
-                          <div style={{ color: '#ef4444' }}><strong>Missing:</strong> {ev.feedback.missingKeywords.join(", ")}</div>
-                        )}
+                    <div key={idx} style={{ padding: '0.4rem 0.6rem', background: 'var(--color-bg-tertiary)', borderRadius: '6px', fontSize: '0.75rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 500 }}>
+                        <span>Q{idx + 1}</span>
+                        <span style={{ color: (ev.feedback?.score || 0) >= 70 ? '#10b981' : '#f59e0b' }}>{ev.feedback?.score}%</span>
                       </div>
-                    </details>
-                  ))}
-                  {currentQuestion && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.85rem', marginTop: '0.5rem' }}>
-                      <div style={{ color: '#6366f1' }}><Icon name="arrow_forward" size={16} /></div>
-                      <div style={{ color: '#818cf8', flex: 1 }}>Q{currentQuestion?.questionNumber} — Current</div>
+                      <div style={{ color: 'var(--color-text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {ev.question}
+                      </div>
                     </div>
-                  )}
+                  ))}
                 </div>
-              </div>
-            </>
+              </details>
+            </div>
           )}
+
+          {/* Assistant Guidance Card */}
+          <div style={{
+            marginTop: 'auto',
+            background: 'linear-gradient(135deg, rgba(99,102,241,0.1), rgba(168,85,247,0.05))',
+            border: '1px solid rgba(99,102,241,0.2)',
+            borderRadius: '10px',
+            padding: '1rem'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.35rem', color: '#818cf8', fontSize: '0.85rem', fontWeight: 600 }}>
+              <Icon name="lightbulb" size={16} />
+              <span>AI Interviewer</span>
+            </div>
+            <div style={{ color: 'var(--color-text-secondary)', fontSize: '0.8rem', lineHeight: 1.4 }}>
+              Answer naturally and explain your reasoning clearly. The interview will adapt based on your responses.
+            </div>
+          </div>
+
         </div>
       </div>
     </div>

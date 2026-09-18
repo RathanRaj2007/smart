@@ -77,10 +77,10 @@ export default function AdminInterviewsPage() {
   }
 
   const getScoreBadge = (score: number | null | undefined) => {
-    if (score === null || score === undefined) {
-      return <span style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem' }}>N/A</span>
+    if (score === null || score === undefined || typeof score !== 'number' || !isFinite(score)) {
+      return <span style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem' }}>—</span>
     }
-    const percent = Math.round(score * 10) // score is 0-10
+    const percent = Math.round(score * 10) / 10
     let bg = 'rgba(16,185,129,0.15)'
     let text = '#10b981'
     if (percent < 50) {
