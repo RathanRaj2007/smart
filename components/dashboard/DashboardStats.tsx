@@ -28,7 +28,7 @@ export const DashboardStats = ({ totalSessions, completedSessions, activeSession
   })
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem' }}>
+    <div className="dashboard-stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem' }}>
       
       <div style={cardStyle}>
         <div style={iconWrap('59, 130, 246')}><Icon name="analytics" size={24} /></div>

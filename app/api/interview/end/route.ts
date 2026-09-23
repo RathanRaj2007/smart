@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
 import { generateLLMResponse } from "@/lib/llm";
+import { getAppSession } from "@/lib/auth";
 
 const REPORT_GENERATOR_PROMPT = `
 You are the KMIT Interview Analytics Engine.
@@ -27,7 +28,6 @@ OUTPUT FORMAT (JSON):
 export async function POST(req: NextRequest) {
   try {
     const res = NextResponse.json({});
-    const { getAppSession } = await import("@/lib/auth");
     const userSession = await getAppSession(req as unknown as Request, res as unknown as Response);
     if (!userSession?.userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -36,12 +36,20 @@ export async function POST(req: NextRequest) {
     const session = await prisma.interviewSession.findUnique({
       where: { id: sessionId },
       include: {
+        candidate: true,
         questions: { include: { answer: { include: { evaluation: true } } } },
         gaps: true
       }
     });
 
-    if (!session || session.interviewerId !== userSession.userId) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    if (!session) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+    const isOwner =
+      userSession.role === 'ADMIN' ||
+      session.interviewerId === userSession.userId ||
+      (session.candidate?.userId !== null && session.candidate?.userId === userSession.userId);
+
+    if (!isOwner) return NextResponse.json({ error: "Not found or unauthorized" }, { status: 404 });
 
     const evals = session.questions.map(q => q.answer?.evaluation).filter(Boolean);
     const avgScore = evals.length > 0 

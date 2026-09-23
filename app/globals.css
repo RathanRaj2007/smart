@@ -2300,90 +2300,192 @@ input:checked + .slider::before {
 
 .suggestion-card:hover { background: rgba(99,102,241,0.1) !important; }
 
-
 /* ==========================================================================
-   RESPONSIVE DESIGN SYSTEM
+   AUTH PAGE UTILITIES — theme-aware inputs for /login and /register
    ========================================================================== */
 
-@media (max-width: 1024px) {
-  .app-container {
-    flex-direction: column !important;
-  }
-  .sidebar {
-    width: 100% !important;
-    height: auto !important;
-    min-height: auto !important;
-    position: relative !important;
-    flex-direction: row !important;
-    overflow-x: auto !important;
-    padding: 0.5rem !important;
-    border-right: none !important;
-    border-bottom: 1px solid var(--color-card-border) !important;
-  }
-  .sidebar-nav ul {
-    flex-direction: row !important;
-    gap: 1rem !important;
-  }
-  .sidebar-nav li {
-    flex-shrink: 0;
-  }
-  .nav-text {
-    display: none !important;
-  }
-  .sidebar-footer {
-    display: none !important;
-  }
-  .sidebar-toggle-btn {
-    display: none !important;
-  }
-  .main-content {
-    height: auto !important;
-    min-height: calc(100vh - var(--header-height) - 60px) !important;
-  }
+.auth-input {
+  color: var(--color-text-primary);
+  background: var(--color-bg-tertiary);
+  border: 1px solid var(--color-card-border);
+  border-radius: 8px;
+  width: 100%;
+  padding: 0.75rem 1rem;
+  font-size: 0.9rem;
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.2s;
 }
 
-@media (max-width: 768px) {
-  .header {
-    flex-wrap: wrap !important;
-    height: auto !important;
-    min-height: var(--header-height);
-    padding: 1rem !important;
-  }
-  .header-center {
-    order: 3;
-    width: 100% !important;
-    margin-top: 1rem !important;
-  }
-  .header-center .search-bar {
-    width: 100% !important;
-    max-width: 100% !important;
-  }
-  section.screen {
-    padding: 1rem !important;
-  }
-  table {
-    min-width: 600px !important;
-  }
-  .app-footer {
-    flex-wrap: wrap !important;
-    height: auto !important;
-    padding: 1rem !important;
-    gap: 1rem !important;
-    justify-content: center !important;
-  }
-  .footer-left, .footer-center, .footer-right {
-    width: 100% !important;
-    justify-content: center !important;
-    text-align: center !important;
-  }
+.auth-input:focus {
+  border-color: rgba(99, 102, 241, 0.6);
 }
 
-@media (max-width: 480px) {
-  .logo-text h1 {
-    font-size: 1.1rem !important;
-  }
-  .icon-btn {
-    width: 32px !important;
-    height: 32px !important;
-  }
+.auth-input::placeholder {
+  color: var(--color-text-muted);
+  opacity: 1;
 }
+
+.auth-input-password {
+  padding-right: 2.75rem;
+}
+
+/* OTP individual digit boxes */
+.otp-box {
+  width: 44px;
+  height: 52px;
+  text-align: center;
+  font-size: 1.4rem;
+  font-weight: 700;
+  font-family: monospace;
+  border-radius: 8px;
+  border: 2px solid var(--color-card-border);
+  background: var(--color-bg-tertiary);
+  color: var(--color-text-primary);
+  outline: none;
+  caret-color: var(--color-indigo);
+  transition: border-color 0.15s;
+}
+
+.otp-box:focus {
+  border-color: var(--color-indigo);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.18);
+}
+
+.otp-box::placeholder {
+  color: var(--color-text-muted);
+  opacity: 0.5;
+}
+
+/* Auth card wrapper */
+.auth-page-bg {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--color-bg-primary);
+  padding: 2rem;
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 440px;
+  background: var(--color-card-bg);
+  border: 1px solid var(--color-card-border);
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: var(--shadow-lg);
+}
+
+/* Role selector toggle buttons */
+.auth-role-btn {
+  padding: 0.72rem;
+  border-radius: 8px;
+  border: 1px solid var(--color-card-border);
+  background: var(--color-bg-tertiary);
+  color: var(--color-text-secondary);
+  font-weight: 400;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-size: 0.88rem;
+  transition: all 0.15s;
+}
+
+.auth-role-btn.active {
+  border-color: var(--color-indigo);
+  background: rgba(99, 102, 241, 0.12);
+  color: var(--color-text-primary);
+  font-weight: 600;
+}
+
+/* Inline alert banners */
+.auth-alert {
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  margin-bottom: 1.25rem;
+  font-size: 0.85rem;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.auth-alert-error {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  color: #f87171;
+}
+
+.auth-alert-success {
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  color: #34d399;
+}
+
+.auth-alert-info {
+  background: rgba(99, 102, 241, 0.08);
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  color: var(--color-text-secondary);
+}
+
+body.light-theme .auth-alert-info {
+  color: #4338ca;
+}
+
+/* Visibility toggle button */
+.auth-vis-toggle {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  display: flex;
+  padding: 0;
+  line-height: 1;
+}
+
+/* Back/change-role link button */
+.auth-back-btn {
+  background: none;
+  border: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  font-size: 0.85rem;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Role badge tag */
+.auth-role-badge {
+  font-size: 0.72rem;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+/* Primary action button base */
+.auth-submit-btn {
+  width: 100%;
+  border: none;
+  padding: 0.82rem;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  color: #ffffff;
+  transition: opacity 0.2s;
+}
+
+.auth-submit-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+

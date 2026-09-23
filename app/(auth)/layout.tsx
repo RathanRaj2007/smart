@@ -16,7 +16,7 @@ export default async function AuthLayout({
   }
 
   return (
-    <AppShell username={session.username}>
+    <AppShell username={session.username} role={session.role}>
       {children}
     </AppShell>
   )

@@ -73,18 +73,17 @@ export async function processDocument(id: number) {
       )
     }
 
-    // Store embeddings using raw SQL since Prisma doesn't support Unsupported types in writes
-    for (let i = 0; i < savedChunks.length; i++) {
-      const chunkId = savedChunks[i].id
+    // Store embeddings using raw SQL inside a single transaction
+    const updatePromises = savedChunks.map((chunk, i) => {
       const vector = embeddings[i]
       const vectorStr = `[${vector.join(',')}]`
-
-      await prisma.$executeRawUnsafe(
+      return prisma.$executeRawUnsafe(
         `UPDATE "DocumentChunk" SET "embedding" = $1::vector WHERE "id" = $2`,
         vectorStr,
-        chunkId
+        chunk.id
       )
-    }
+    })
+    await prisma.$transaction(updatePromises)
 
     console.log(`[processDocument] Doc ${id}: stored ${embeddings.length} embeddings successfully`)
 

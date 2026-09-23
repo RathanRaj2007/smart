@@ -29,7 +29,7 @@ export default async function DashboardPage() {
 
   return (
     <section className="screen active" style={{ padding: '1.5rem 2rem', maxWidth: '1600px', margin: '0 auto' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '2rem' }}>
+      <div className="dashboard-header-flex" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '2rem' }}>
         <div>
           <h2 style={{ fontSize: '1.75rem', fontWeight: 600, color: 'var(--color-text-primary)', margin: 0 }}>Overview Hub</h2>
           <p style={{ color: 'var(--color-text-muted)', fontSize: '0.9rem', marginTop: '0.35rem' }}>Global metrics, recent interview sessions, and system health.</p>
@@ -52,7 +52,7 @@ export default async function DashboardPage() {
         activeSession={activeSessions[0]} 
       />
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '1.5rem', marginTop: '2rem' }}>
+      <div className="dashboard-main-grid" style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '1.5rem', marginTop: '2rem' }}>
         <RecentInterviews sessions={recentSessions} />
 
         <div style={{ background: 'var(--color-card-bg)', border: '1px solid var(--color-card-border)', borderRadius: '16px', display: 'flex', flexDirection: 'column', height: '100%', minHeight: '400px' }}>

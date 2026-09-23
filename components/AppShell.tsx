@@ -8,14 +8,15 @@ import { InterviewStateProvider } from './providers/InterviewStateProvider'
 interface AppShellProps {
   children: React.ReactNode
   username?: string
+  role?: string
 }
 
-export const AppShell = ({ children, username }: AppShellProps) => {
+export const AppShell = ({ children, username, role }: AppShellProps) => {
   return (
     <InterviewStateProvider>
-      <Header username={username} />
+      <Header username={username} role={role} />
       <div className="app-container">
-        <Sidebar />
+        <Sidebar role={role} />
         <main className="main-content">
           {children}
         </main>

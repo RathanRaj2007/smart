@@ -216,7 +216,7 @@ export const KnowledgeBaseClient = () => {
   return (
     <div style={{ padding: '2rem', color: 'var(--color-text-primary)', background: 'transparent', minHeight: '100%', fontFamily: 'var(--font-body)' }}>
       {/* Header Section */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '2rem' }}>
+      <div className="kb-header-flex" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '2rem' }}>
         <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
           <div style={{ padding: '0.85rem', background: 'rgba(99, 102, 241, 0.1)', borderRadius: '14px', border: '1px solid rgba(99,102,241,0.2)', color: '#818cf8', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <Icon name="description" size={28} />
@@ -252,7 +252,7 @@ export const KnowledgeBaseClient = () => {
       {success && <div style={{ background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', padding: '0.75rem 1rem', borderRadius: '8px', marginBottom: '1.5rem', border: '1px solid rgba(16, 185, 129, 0.2)' }}>{success}</div>}
 
       {/* Stats Cards Section */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
+      <div className="kb-stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
         {[
           { label: 'Documents', value: docs.length, sub: 'Total uploaded', icon: 'description', color: '#818cf8', bg: 'rgba(99, 102, 241, 0.1)' },
           { label: 'Chunks', value: totalChunks, sub: 'Total chunks', icon: 'memory', color: '#34d399', bg: 'rgba(16, 185, 129, 0.1)' },
@@ -364,7 +364,7 @@ export const KnowledgeBaseClient = () => {
       </div>
 
       {/* RAG Section */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '1.5rem' }}>
+      <div className="kb-rag-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '1.5rem' }}>
         
         {/* RAG Index Tester */}
         <div style={{ background: 'var(--color-card-bg)', borderRadius: '12px', border: '1px solid var(--color-card-border)', padding: '1.5rem', display: 'flex', flexDirection: 'column' }}>

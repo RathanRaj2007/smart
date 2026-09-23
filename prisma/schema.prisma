@@ -12,12 +12,15 @@ datasource db {
 model User {
   id           Int                @id @default(autoincrement())
   username     String             @unique
-  passwordHash String
+  email        String?            @unique
+  passwordHash String?
   role         String             @default("INTERVIEWER")
   createdAt    DateTime           @default(now())
   documents    Document[]
   sessions     InterviewSession[]
   auditLogs    AuditLog[]
+  candidate    Candidate?
+  otps         OtpVerification[]
 }
 
 model Document {
@@ -66,6 +69,8 @@ model Candidate {
   email     String?
   createdAt DateTime           @default(now())
   sessions  InterviewSession[]
+  userId    Int?               @unique
+  user      User?              @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model InterviewSession {
@@ -171,4 +176,21 @@ model AuditLog {
   @@index([action])
   @@index([entityType, entityId])
 }
+
+model OtpVerification {
+  id        String    @id @default(uuid())
+  userId    Int?
+  email     String
+  otpHash   String
+  expiresAt DateTime
+  attempts  Int       @default(0)
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+  user      User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([email])
+  @@index([userId])
+  @@index([expiresAt])
+}
+
 

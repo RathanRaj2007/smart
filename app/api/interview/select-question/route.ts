@@ -1,13 +1,10 @@
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import prisma from '@/lib/db';
+import { getAppSession } from '@/lib/auth';
 
 export async function POST(req: Request) {
   try {
-    const { NextResponse } = await import('next/server');
     const res = NextResponse.json({});
-    const { getAppSession } = await import("@/lib/auth");
     const userSession = await getAppSession(req, res);
     if (!userSession?.userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -19,11 +16,21 @@ export async function POST(req: Request) {
 
     // Ensure session exists
     const session = await prisma.interviewSession.findUnique({
-      where: { id: sessionId }
+      where: { id: sessionId },
+      include: { candidate: true }
     });
 
-    if (!session || session.interviewerId !== userSession.userId) {
+    if (!session) {
       return NextResponse.json({ error: "Session not found" }, { status: 404 });
+    }
+
+    const isOwner =
+      userSession.role === 'ADMIN' ||
+      session.interviewerId === userSession.userId ||
+      (session.candidate?.userId !== null && session.candidate?.userId === userSession.userId);
+
+    if (!isOwner) {
+      return NextResponse.json({ error: "Session not found or unauthorized" }, { status: 404 });
     }
 
     // Ensure this question number doesn't already exist to prevent duplicates

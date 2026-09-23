@@ -1,9 +1,13 @@
 import Groq from 'groq-sdk'
 
-// Lazily-initialized client
-let _groq: Groq | null = null
+// Lazily-initialized client cached across requests
+declare const globalThis: {
+  _groqClient?: Groq | null
+} & typeof global
 
-function getGroq(): Groq {
+let _groq: Groq | null = globalThis._groqClient ?? null
+
+export function getGroq(): Groq {
   if (!_groq) {
     const apiKey = process.env.GROQ_API_KEY
     if (!apiKey) {
@@ -13,6 +17,9 @@ function getGroq(): Groq {
       )
     }
     _groq = new Groq({ apiKey })
+    if (process.env.NODE_ENV !== 'production') {
+      globalThis._groqClient = _groq
+    }
   }
   return _groq
 }

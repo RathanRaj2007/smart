@@ -3,12 +3,13 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "concurrently \"next dev\" \"node scripts/warmup.mjs\"",
+    "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
     "db:seed": "tsx prisma/seed.ts",
-    "db:migrate": "prisma migrate dev"
+    "db:migrate": "prisma migrate dev",
+    "postinstall": "node scripts/patch-next.mjs"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
@@ -26,6 +27,7 @@
     "mammoth": "^1.12.1",
     "marked": "^18.0.11",
     "next": "^15.3.3",
+    "nodemailer": "^10.0.10",
     "pdf-parse": "^2.4.5",
     "react": "^19.0.0",
     "react-chartjs-2": "^5.3.0",
@@ -35,9 +37,9 @@
     "@types/bcryptjs": "^2.4.6",
     "@types/js-cookie": "^3.0.6",
     "@types/node": "^22.0.0",
+    "@types/nodemailer": "^8.0.2",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
-    "concurrently": "^10.0.5",
     "eslint": "^9.0.0",
     "eslint-config-next": "^15.3.3",
     "prisma": "^6.3.0",

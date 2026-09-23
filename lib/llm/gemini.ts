@@ -7,10 +7,18 @@
  */
 import { GoogleGenerativeAI } from '@google/generative-ai'
 
-// Lazily-initialized client
-let _genAI: GoogleGenerativeAI | null = null
+// Lazily-initialized client and model cached across requests
+declare const globalThis: {
+  _geminiAI?: GoogleGenerativeAI | null
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  _geminiModel?: any
+} & typeof global
 
-function getGenAI(): GoogleGenerativeAI {
+let _genAI: GoogleGenerativeAI | null = globalThis._geminiAI ?? null
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let _geminiModel: any = globalThis._geminiModel ?? null
+
+export function getGenAI(): GoogleGenerativeAI {
   if (!_genAI) {
     const apiKey = process.env.GEMINI_API_KEY
     if (!apiKey) {
@@ -20,6 +28,9 @@ function getGenAI(): GoogleGenerativeAI {
       )
     }
     _genAI = new GoogleGenerativeAI(apiKey)
+    if (process.env.NODE_ENV !== 'production') {
+      globalThis._geminiAI = _genAI
+    }
   }
   return _genAI
 }
@@ -28,6 +39,17 @@ function getGenAI(): GoogleGenerativeAI {
  * The Gemini model to use.
  */
 export const GEMINI_MODEL = 'gemini-3.6-flash' // Restored to 3.6-flash
+
+export function getGeminiModel() {
+  if (!_geminiModel) {
+    const genAI = getGenAI()
+    _geminiModel = genAI.getGenerativeModel({ model: GEMINI_MODEL })
+    if (process.env.NODE_ENV !== 'production') {
+      globalThis._geminiModel = _geminiModel
+    }
+  }
+  return _geminiModel
+}
 
 /**
  * Generate a text response from Gemini given a prompt string.
@@ -40,8 +62,7 @@ export async function generateGeminiResponse(prompt: string): Promise<string> {
     throw new Error('[gemini] Prompt cannot be empty')
   }
 
-  const genAI = getGenAI()
-  const model = genAI.getGenerativeModel({ model: GEMINI_MODEL })
+  const model = getGeminiModel()
 
   const result = await model.generateContent(prompt)
   const response = result.response

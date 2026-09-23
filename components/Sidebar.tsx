@@ -5,11 +5,20 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import Icon from '@/components/Icon'
 
-export const Sidebar = () => {
+interface SidebarProps {
+  role?: string
+}
+
+export const Sidebar = ({ role = 'INTERVIEWER' }: SidebarProps) => {
   const [collapsed, setCollapsed] = useState(false)
   const pathname = usePathname()
 
-  const navItems = [
+  const navItems = role === 'CANDIDATE' ? [
+    { href: '/candidate', icon: 'dashboard', text: 'Candidate Dashboard' },
+    { href: '/report', icon: 'analytics', text: 'Interview History / My Reports' },
+    { href: '/candidate?tab=performance', icon: 'trending_up', text: 'Performance' },
+    { href: '/settings', icon: 'settings', text: 'Settings & Profile' },
+  ] : [
     { href: '/dashboard', icon: 'dashboard', text: 'Overview Hub' },
     { href: '/interview', icon: 'mic', text: 'Live Interview' },
     { href: '/candidate', icon: 'person', text: 'Candidate Profile' },

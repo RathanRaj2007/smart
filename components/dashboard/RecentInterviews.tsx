@@ -11,7 +11,7 @@ export const RecentInterviews = ({ sessions }: { sessions: Array<{ id: string; c
       
       <div style={{ display: 'flex', flexDirection: 'column' }}>
         {sessions.map((session, idx) => (
-          <div key={session.id} style={{ padding: '1.25rem 1.5rem', borderBottom: idx !== sessions.length - 1 ? '1px solid rgba(255,255,255,0.05)' : 'none', display: 'flex', alignItems: 'center', justifyContent: 'space-between', transition: 'background 0.2s ease', cursor: 'pointer' }} className="hover-bg-light">
+          <div key={session.id} style={{ padding: '1.25rem 1.5rem', borderBottom: idx !== sessions.length - 1 ? '1px solid rgba(255,255,255,0.05)' : 'none', display: 'flex', alignItems: 'center', justifyContent: 'space-between', transition: 'background 0.2s ease', cursor: 'pointer' }} className="hover-bg-light recent-interview-item">
             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
               <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'linear-gradient(135deg, #4f46e5, #7c3aed)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-text-primary)', fontWeight: 600, fontSize: '1.1rem' }}>
                 {session.candidate?.name?.[0] || 'C'}
@@ -22,7 +22,7 @@ export const RecentInterviews = ({ sessions }: { sessions: Array<{ id: string; c
               </div>
             </div>
             
-            <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+            <div className="recent-interview-meta" style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.2rem' }}>
                 <span style={{ color: 'var(--color-text-secondary)', fontSize: '0.75rem' }}>Score</span>
                 <span style={{ color: (session.score || 0) > 80 ? '#10b981' : (session.score || 0) > 60 ? '#f59e0b' : '#ef4444', fontWeight: 600, fontSize: '1rem' }}>
@@ -36,11 +36,9 @@ export const RecentInterviews = ({ sessions }: { sessions: Array<{ id: string; c
               }}>
                 {session.status}
               </div>
-              {session.status === 'completed' && (
-                <a href={`/report/${session.id}`} style={{ color: '#6366f1', textDecoration: 'none' }}>
-                  <Icon name="chevron_right" />
-                </a>
-              )}
+              <a href={`/report/${session.id}`} style={{ color: '#6366f1', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '2px', fontSize: '0.8rem', fontWeight: 500 }}>
+                View Q&amp;A <Icon name="chevron_right" size={16} />
+              </a>
             </div>
           </div>
         ))}

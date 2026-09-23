@@ -4,26 +4,27 @@ import { generateLLMResponse } from "@/lib/llm";
 import { QUESTION_GENERATOR_PROMPT } from "@/lib/llm/prompts";
 import { searchChunks } from "@/lib/knowledge-base/searchChunks";
 import { createAuditLog } from "@/lib/audit-log";
+import { getAppSession } from "@/lib/auth";
 
 export async function POST(req: NextRequest) {
   try {
-    const { candidateName, subject, mode, setupData, forceProvider } = await req.json();
+    const { candidateId, candidateName, subject, difficulty, mode, setupData, forceProvider } = await req.json();
 
-    if (!candidateName || !subject) {
-      return NextResponse.json({ error: "Missing candidate name or subject" }, { status: 400 });
+    if ((!candidateName && !candidateId) || !subject) {
+      return NextResponse.json({ error: "Missing candidate identifier or subject" }, { status: 400 });
     }
 
     // Get Session to get real userId if available
     const res = NextResponse.json({});
     let userId = null;
     let username = null;
+    let userRole = null;
     try {
-      const { getAppSession } = await import("@/lib/auth");
-      // Use unknown as any to bypass NextRequest typing issues with getIronSession if any
       const ironSession = await getAppSession(req as unknown as Request, res as unknown as Response);
       if (ironSession?.userId) {
         userId = ironSession.userId;
         username = ironSession.username;
+        userRole = ironSession.role;
       }
     } catch {
       console.error("Session fetch failed");
@@ -31,6 +32,13 @@ export async function POST(req: NextRequest) {
 
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    if (userRole === "CANDIDATE") {
+      return NextResponse.json(
+        { error: "Candidates cannot create interviews. Please join an assigned interview." },
+        { status: 403 }
+      );
     }
 
     const isKnowledgeMode = mode === "knowledge" || mode === "knowledge-base";
@@ -54,11 +62,10 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Please select at least one document for Knowledge Base mode." }, { status: 400 });
       }
 
-      // Verify that all selected documents exist and belong to the user
+      // Verify that all selected documents exist
       const existingDocs = await prisma.document.findMany({
         where: {
-          id: { in: selectedDocIds },
-          userId: userId
+          id: { in: selectedDocIds }
         },
         select: { id: true }
       });
@@ -71,10 +78,24 @@ export async function POST(req: NextRequest) {
       selectedDocIds = existingDocs.map(d => d.id);
     }
 
-    // Create Candidate
-    const candidate = await prisma.candidate.create({
-      data: { name: candidateName }
-    });
+    let candidate = null;
+    if (candidateId) {
+      candidate = await prisma.candidate.findUnique({
+        where: { id: candidateId }
+      });
+    }
+
+    if (!candidate && candidateName) {
+      candidate = await prisma.candidate.findFirst({
+        where: { name: { equals: candidateName, mode: 'insensitive' } }
+      });
+    }
+
+    if (!candidate) {
+      candidate = await prisma.candidate.create({
+        data: { name: candidateName || 'Candidate' }
+      });
+    }
 
     // Create Session
     const session = await prisma.interviewSession.create({
@@ -82,7 +103,7 @@ export async function POST(req: NextRequest) {
         candidateId: candidate.id,
         interviewerId: userId,
         status: "active",
-        difficulty: "medium",
+        difficulty: difficulty || "medium",
         interviewType: "Adaptive",
         scope: {
           subject: subject,
@@ -94,13 +115,14 @@ export async function POST(req: NextRequest) {
     });
 
     // Audit log interview created
+    const auditAction = userRole === 'CANDIDATE' ? 'CANDIDATE_INTERVIEW_STARTED' : 'INTERVIEW_CREATED';
     createAuditLog({
       userId,
       username,
-      action: 'INTERVIEW_CREATED',
+      action: auditAction,
       entityType: 'InterviewSession',
       entityId: session.id,
-      metadata: { candidateName, subject, mode: mode || 'standard', selectedDocumentIds: selectedDocIds }
+      metadata: { candidateName: candidate.name, subject, mode: mode || 'standard', selectedDocumentIds: selectedDocIds }
     });
 
     let contextText = "";

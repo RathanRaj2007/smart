@@ -40,7 +40,8 @@ export async function middleware(request: NextRequest) {
     if (isAdminApiRoute) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
     }
-    const redirectRes = NextResponse.redirect(new URL('/dashboard', request.url))
+    const targetUrl = session.role === 'CANDIDATE' ? '/candidate' : '/dashboard'
+    const redirectRes = NextResponse.redirect(new URL(targetUrl, request.url))
     res.headers.forEach((value, key) => {
       if (key.toLowerCase() === 'set-cookie') {
         redirectRes.headers.append(key, value)
@@ -49,8 +50,31 @@ export async function middleware(request: NextRequest) {
     return redirectRes
   }
 
+  // Candidate restricting from Interviewer-only management routes & unassigned interview setup
+  if (session.isLoggedIn && session.role === 'CANDIDATE') {
+    const isInterviewWithoutSession =
+      request.nextUrl.pathname === '/interview' && !request.nextUrl.searchParams.has('sessionId')
+
+    const isInterviewerOnlyRoute =
+      request.nextUrl.pathname.startsWith('/dashboard') ||
+      request.nextUrl.pathname.startsWith('/knowledge-base') ||
+      request.nextUrl.pathname.startsWith('/suggestions') ||
+      isInterviewWithoutSession
+
+    if (isInterviewerOnlyRoute) {
+      const redirectRes = NextResponse.redirect(new URL('/candidate', request.url))
+      res.headers.forEach((value, key) => {
+        if (key.toLowerCase() === 'set-cookie') {
+          redirectRes.headers.append(key, value)
+        }
+      })
+      return redirectRes
+    }
+  }
+
   if (isAuthRoute && session.isLoggedIn) {
-    const redirectRes = NextResponse.redirect(new URL(session.role === 'ADMIN' ? '/admin' : '/dashboard', request.url))
+    const targetUrl = session.role === 'ADMIN' ? '/admin' : session.role === 'CANDIDATE' ? '/candidate' : '/dashboard'
+    const redirectRes = NextResponse.redirect(new URL(targetUrl, request.url))
     res.headers.forEach((value, key) => {
       if (key.toLowerCase() === 'set-cookie') {
         redirectRes.headers.append(key, value)

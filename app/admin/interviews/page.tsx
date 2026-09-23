@@ -208,18 +208,19 @@ export default function AdminInterviewsPage() {
               <th style={{ padding: '1rem 1.25rem', fontWeight: 600, color: 'var(--color-text-secondary)', fontSize: '0.875rem' }}>Status</th>
               <th style={{ padding: '1rem 1.25rem', fontWeight: 600, color: 'var(--color-text-secondary)', fontSize: '0.875rem' }}>Score</th>
               <th style={{ padding: '1rem 1.25rem', fontWeight: 600, color: 'var(--color-text-secondary)', fontSize: '0.875rem' }}>Started Date</th>
+              <th style={{ padding: '1rem 1.25rem', fontWeight: 600, color: 'var(--color-text-secondary)', fontSize: '0.875rem', textAlign: 'right' }}>Action</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={7} style={{ padding: '3rem', textAlign: 'center', color: 'var(--color-text-secondary)' }}>
+                <td colSpan={8} style={{ padding: '3rem', textAlign: 'center', color: 'var(--color-text-secondary)' }}>
                   Loading interviews...
                 </td>
               </tr>
             ) : interviews.length === 0 ? (
               <tr>
-                <td colSpan={7} style={{ padding: '3rem', textAlign: 'center', color: 'var(--color-text-secondary)' }}>
+                <td colSpan={8} style={{ padding: '3rem', textAlign: 'center', color: 'var(--color-text-secondary)' }}>
                   No interviews found matching criteria.
                 </td>
               </tr>
@@ -270,6 +271,11 @@ export default function AdminInterviewsPage() {
                   </td>
                   <td style={{ padding: '1rem 1.25rem', color: 'var(--color-text-secondary)', fontSize: '0.875rem' }}>
                     {new Date(item.startedAt).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                  </td>
+                  <td style={{ padding: '1rem 1.25rem', textAlign: 'right' }}>
+                    <a href={`/report/${item.id}`} style={{ textDecoration: 'none', color: '#818cf8', fontWeight: 500, fontSize: '0.85rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                      <Icon name="visibility" size={16} /> View Q&amp;A
+                    </a>
                   </td>
                 </tr>
               ))

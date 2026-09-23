@@ -10,43 +10,54 @@
 export const EMBEDDING_MODEL = 'Xenova/all-MiniLM-L6-v2'
 export const EMBEDDING_DIMENSIONS = 384
 
-// Process-level singleton — model is loaded once and reused across all calls
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let _pipeline: any = null
+// Process-level singleton promise — model is loaded once and reused across all calls
+declare const globalThis: {
+  _embeddingPipelinePromise?: Promise<unknown> | null
+} & typeof global
+
+let _pipelinePromise: Promise<unknown> | null = globalThis._embeddingPipelinePromise ?? null
 
 /**
- * Load (or return cached) embedding pipeline.
- * On first call, downloads the model weights (~23 MB) to the local cache.
+ * Load (or return cached) embedding pipeline promise.
+ * Concurrent requests share the same in-flight promise to prevent duplicate model loads.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function getEmbeddingPipeline(): Promise<any> {
-  if (!_pipeline) {
-    const { pipeline } = await import('@xenova/transformers')
-    console.log('[embeddings] Loading local model: Xenova/all-MiniLM-L6-v2 ...')
-    _pipeline = await pipeline('feature-extraction', EMBEDDING_MODEL, {
-      // Suppress informational logs from the transformers library
-      progress_callback: undefined,
+export function getEmbeddingPipeline(): Promise<unknown> {
+  if (!_pipelinePromise) {
+    _pipelinePromise = (async () => {
+      const { pipeline } = await import('@xenova/transformers')
+      console.log('[embeddings] Loading local model: Xenova/all-MiniLM-L6-v2 ...')
+      const pipe = await pipeline('feature-extraction', EMBEDDING_MODEL, {
+        // Suppress informational logs from the transformers library
+        progress_callback: undefined,
+      })
+      console.log('[embeddings] Model loaded successfully')
+      return pipe
+    })().catch((err) => {
+      _pipelinePromise = null
+      globalThis._embeddingPipelinePromise = null
+      throw err
     })
-    console.log('[embeddings] Model loaded successfully')
+
+    if (process.env.NODE_ENV !== 'production') {
+      globalThis._embeddingPipelinePromise = _pipelinePromise
+    }
   }
-  return _pipeline
+  return _pipelinePromise
 }
 
 /**
  * Convert raw pipeline output (nested Float32Array/Array) to a plain number[].
  * The pipeline returns shape [1, sequence_length, 384]; we mean-pool to [384].
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function toVector(output: any): number[] {
-  // output.data is a flat Float32Array of shape [1 * seq_len * 384]
-  // output dims: [batch=1, seq_len, hidden=384]
-  const data: Float32Array = output.data
-  const dims: number[] = output.dims as number[]
+function toVector(output: unknown): number[] {
+  const out = output as { data?: Float32Array; dims?: number[] } | undefined
+  const data = out?.data
+  const dims = out?.dims
 
   if (!data || !dims || dims.length < 3) {
     // Fallback: if dims not available, assume already pooled to 384
-    const arr = Array.from(data ?? output)
-    if (arr.length === EMBEDDING_DIMENSIONS) return arr as number[]
+    const arr = Array.from((data ?? output) as ArrayLike<number>)
+    if (arr.length === EMBEDDING_DIMENSIONS) return arr
     throw new Error(`[embeddings] Unexpected output shape: dims=${JSON.stringify(dims)}`)
   }
 
@@ -87,7 +98,10 @@ export async function generateEmbedding(text: string): Promise<number[]> {
     throw new Error('[embeddings] Cannot generate embedding for empty text')
   }
 
-  const pipe = await getEmbeddingPipeline()
+  const pipe = (await getEmbeddingPipeline()) as (
+    text: string,
+    options?: { pooling?: string; normalize?: boolean }
+  ) => Promise<{ data?: Float32Array; dims?: number[]; tolist?: () => number[] | number[][] }>
   const output = await pipe(text, { pooling: 'mean', normalize: true })
 
   // Try the convenient accessor first (newer @xenova/transformers returns it pooled)

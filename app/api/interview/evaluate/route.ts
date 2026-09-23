@@ -4,11 +4,11 @@ import { generateLLMResponse, handleLLMError, FallbackRequiredError } from "@/li
 import { ANSWER_EVALUATOR_PROMPT, QUESTION_GENERATOR_PROMPT } from "@/lib/llm/prompts";
 import { determineNextQuestionParams, updateSessionState } from "@/lib/interview/engine";
 import { searchChunks } from "@/lib/knowledge-base/searchChunks";
+import { getAppSession } from "@/lib/auth";
 
 export async function POST(req: NextRequest) {
   try {
     const res = NextResponse.json({});
-    const { getAppSession } = await import("@/lib/auth");
     const userSession = await getAppSession(req as unknown as Request, res as unknown as Response);
     if (!userSession?.userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -21,11 +21,20 @@ export async function POST(req: NextRequest) {
     // 1. Fetch Question
     const question = await prisma.question.findUnique({
       where: { id: questionId },
-      include: { session: true }
+      include: { session: { include: { candidate: true } } }
     });
 
-    if (!question || question.session.interviewerId !== userSession.userId) {
+    if (!question) {
       return NextResponse.json({ error: "Question not found" }, { status: 404 });
+    }
+
+    const isOwner =
+      userSession.role === 'ADMIN' ||
+      question.session.interviewerId === userSession.userId ||
+      (question.session.candidate?.userId !== null && question.session.candidate?.userId === userSession.userId);
+
+    if (!isOwner) {
+      return NextResponse.json({ error: "Question not found or unauthorized" }, { status: 404 });
     }
 
     // 2. Check if answer already exists
@@ -82,9 +91,8 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Fetch session scope to respect mode, material, keywords, or selected Knowledge Base documents
-    const sessionObj = await prisma.interviewSession.findUnique({ where: { id: sessionId } });
-    const scope = (sessionObj?.scope as Record<string, unknown>) || {};
+    // Use session scope from question.session to respect mode, material, keywords, or selected Knowledge Base documents
+    const scope = (question.session?.scope as Record<string, unknown>) || {};
     const mode = (scope.mode as string) || "standard";
     const setupData = (scope.setupData as string) || "";
     const isKnowledgeMode = mode === "knowledge" || mode === "knowledge-base";
