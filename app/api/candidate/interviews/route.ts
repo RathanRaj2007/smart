@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { getAppSession } from '@/lib/auth'
 import prisma from '@/lib/db'
 
+import { formatInterviewerName } from '@/lib/formatters'
+
 export async function GET(request: Request) {
   try {
     const response = NextResponse.json({})
@@ -37,7 +39,7 @@ export async function GET(request: Request) {
 
     const where = { candidateId: candidate.id }
 
-    const [total, interviews] = await Promise.all([
+    const [total, rawInterviews] = await Promise.all([
       prisma.interviewSession.count({ where }),
       prisma.interviewSession.findMany({
         where,
@@ -52,7 +54,9 @@ export async function GET(request: Request) {
           scope: true,
           interviewer: {
             select: {
-              username: true
+              username: true,
+              email: true,
+              candidate: { select: { name: true } }
             }
           },
           report: {
@@ -67,6 +71,13 @@ export async function GET(request: Request) {
         take: limit
       })
     ])
+
+    const interviews = rawInterviews.map((item) => ({
+      ...item,
+      interviewer: {
+        username: formatInterviewerName(item.interviewer)
+      }
+    }))
 
     return NextResponse.json({
       interviews,

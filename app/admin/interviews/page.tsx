@@ -19,6 +19,7 @@ interface InterviewItem {
   interviewer: {
     id: number
     username: string
+    displayName?: string
     role: string
   } | null
   report: {
@@ -204,7 +205,7 @@ export default function AdminInterviewsPage() {
               <th style={{ padding: '1rem 1.25rem', fontWeight: 600, color: 'var(--color-text-secondary)', fontSize: '0.875rem' }}>Session ID</th>
               <th style={{ padding: '1rem 1.25rem', fontWeight: 600, color: 'var(--color-text-secondary)', fontSize: '0.875rem' }}>Candidate</th>
               <th style={{ padding: '1rem 1.25rem', fontWeight: 600, color: 'var(--color-text-secondary)', fontSize: '0.875rem' }}>Interviewer</th>
-              <th style={{ padding: '1rem 1.25rem', fontWeight: 600, color: 'var(--color-text-secondary)', fontSize: '0.875rem' }}>Type & Difficulty</th>
+              <th style={{ padding: '1rem 1.25rem', fontWeight: 600, color: 'var(--color-text-secondary)', fontSize: '0.875rem' }}>Type &amp; Difficulty</th>
               <th style={{ padding: '1rem 1.25rem', fontWeight: 600, color: 'var(--color-text-secondary)', fontSize: '0.875rem' }}>Status</th>
               <th style={{ padding: '1rem 1.25rem', fontWeight: 600, color: 'var(--color-text-secondary)', fontSize: '0.875rem' }}>Score</th>
               <th style={{ padding: '1rem 1.25rem', fontWeight: 600, color: 'var(--color-text-secondary)', fontSize: '0.875rem' }}>Started Date</th>
@@ -237,10 +238,10 @@ export default function AdminInterviewsPage() {
                     )}
                   </td>
                   <td style={{ padding: '1rem 1.25rem', color: 'var(--color-text-primary)', fontSize: '0.875rem' }}>
-                    {item.interviewer?.username ? (
+                    {item.interviewer ? (
                       <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
                         <Icon name="person" size={16} />
-                        {item.interviewer.username}
+                        {item.interviewer.displayName || item.interviewer.username}
                       </span>
                     ) : (
                       <span style={{ color: 'var(--color-text-muted)', fontStyle: 'italic' }}>Unassigned</span>

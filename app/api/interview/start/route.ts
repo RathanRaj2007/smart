@@ -8,11 +8,14 @@ import { getAppSession } from "@/lib/auth";
 
 export async function POST(req: NextRequest) {
   try {
-    const { candidateId, candidateName, subject, difficulty, mode, setupData, forceProvider } = await req.json();
+    const { candidateId, candidateName, subject: inputSubject, difficulty, mode, setupData, forceProvider } = await req.json();
 
-    if ((!candidateName && !candidateId) || !subject) {
-      return NextResponse.json({ error: "Missing candidate identifier or subject" }, { status: 400 });
+    if (!candidateName && !candidateId) {
+      return NextResponse.json({ error: "Missing candidate identifier" }, { status: 400 });
     }
+
+    const isKnowledgeMode = mode === "knowledge" || mode === "knowledge-base";
+    const subject = inputSubject?.trim() || (isKnowledgeMode ? 'Knowledge Base' : 'General Technical');
 
     // Get Session to get real userId if available
     const res = NextResponse.json({});
@@ -41,7 +44,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const isKnowledgeMode = mode === "knowledge" || mode === "knowledge-base";
     let selectedDocIds: number[] | undefined = undefined;
 
     if (isKnowledgeMode) {
@@ -62,10 +64,11 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Please select at least one document for Knowledge Base mode." }, { status: 400 });
       }
 
-      // Verify that all selected documents exist
+      // Verify that all selected documents belong to this user (server-side ownership check)
       const existingDocs = await prisma.document.findMany({
         where: {
-          id: { in: selectedDocIds }
+          id: { in: selectedDocIds },
+          userId: userId  // CRITICAL: must belong to this user
         },
         select: { id: true }
       });
@@ -74,8 +77,9 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "The selected Knowledge Base documents were not found or are no longer available." }, { status: 400 });
       }
 
-      // Use valid doc IDs only
+      // Use valid doc IDs only (ignoring any unauthorized IDs)
       selectedDocIds = existingDocs.map(d => d.id);
+
     }
 
     let candidate = null;
@@ -97,6 +101,14 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    // Resolve initial LLM provider from request or cookie
+    const { cookies } = await import("next/headers");
+    const cookieStore = await cookies();
+    const storedLLM = cookieStore.get('selectedLLM')?.value;
+    const chosenProvider = forceProvider && (forceProvider === 'gemini' || forceProvider === 'groq')
+      ? forceProvider
+      : (storedLLM === 'groq' || storedLLM === 'gemini' ? storedLLM : 'gemini');
+
     // Create Session
     const session = await prisma.interviewSession.create({
       data: {
@@ -109,7 +121,8 @@ export async function POST(req: NextRequest) {
           subject: subject,
           mode: mode || "standard",
           setupData: setupData || "",
-          selectedDocumentIds: selectedDocIds || null
+          selectedDocumentIds: selectedDocIds || null,
+          llmProvider: chosenProvider
         }
       }
     });
@@ -122,7 +135,7 @@ export async function POST(req: NextRequest) {
       action: auditAction,
       entityType: 'InterviewSession',
       entityId: session.id,
-      metadata: { candidateName: candidate.name, subject, mode: mode || 'standard', selectedDocumentIds: selectedDocIds }
+      metadata: { candidateName: candidate.name, subject, mode: mode || 'standard', selectedDocumentIds: selectedDocIds, llmProvider: chosenProvider }
     });
 
     let contextText = "";
@@ -153,7 +166,7 @@ export async function POST(req: NextRequest) {
       .replace("{{weak_concepts}}", "None")
       .replace("{{remaining_concepts}}", "All");
 
-    const { text: nextQResponse, provider } = await generateLLMResponse(generatorPrompt + "\n\nReply in strict JSON format.", forceProvider);
+    const { text: nextQResponse, provider } = await generateLLMResponse(generatorPrompt + "\n\nReply in strict JSON format.", chosenProvider);
     
     let nextQJson;
     try {

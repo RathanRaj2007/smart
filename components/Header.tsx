@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation'
 import { useToast } from '@/components/providers/ToastProvider'
 import Icon from '@/components/Icon'
 
+import { formatInterviewerName } from '@/lib/formatters'
+
 interface HeaderProps {
   username?: string
   role?: string
@@ -28,6 +30,7 @@ export const Header = ({ username = 'User', role = 'INTERVIEWER' }: HeaderProps)
   }
 
   const roleLabel = role === 'CANDIDATE' ? 'Candidate' : role === 'ADMIN' ? 'Administrator' : 'Lead Tech Recruiter'
+  const displayName = formatInterviewerName({ username })
 
   return (
     <header className="app-header no-print">
@@ -73,7 +76,7 @@ export const Header = ({ username = 'User', role = 'INTERVIEWER' }: HeaderProps)
             <Icon name="person" size={18} />
           </div>
           <div className="user-info" style={{ display: 'flex', flexDirection: 'column', textAlign: 'left' }}>
-            <span className="user-name" style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--color-text-primary)', lineHeight: 1.2 }}>{username}</span>
+            <span className="user-name" style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--color-text-primary)', lineHeight: 1.2 }}>{displayName}</span>
             <span className="user-role" style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>{roleLabel}</span>
           </div>
         </div>

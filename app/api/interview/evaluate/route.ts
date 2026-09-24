@@ -98,6 +98,23 @@ export async function POST(req: NextRequest) {
     const isKnowledgeMode = mode === "knowledge" || mode === "knowledge-base";
     let selectedDocIds: number[] | undefined = undefined;
 
+    // Resolve LLM provider from session.scope first, or forceProvider, or cookie
+    const { cookies } = await import("next/headers");
+    const cookieStore = await cookies();
+    const storedLLM = cookieStore.get('selectedLLM')?.value;
+    const sessionLLM = (scope.llmProvider as string) || undefined;
+    const effectiveProvider = (forceProvider && (forceProvider === 'gemini' || forceProvider === 'groq'))
+      ? forceProvider
+      : (sessionLLM || (storedLLM === 'groq' || storedLLM === 'gemini' ? storedLLM : 'gemini'));
+
+    // If forceProvider changed the provider, update the session scope so subsequent steps remain consistent
+    if (forceProvider && forceProvider !== sessionLLM) {
+      await prisma.interviewSession.update({
+        where: { id: sessionId },
+        data: { scope: { ...scope, llmProvider: forceProvider } }
+      });
+    }
+
     if (isKnowledgeMode) {
       if (Array.isArray(scope.selectedDocumentIds)) {
         selectedDocIds = (scope.selectedDocumentIds as unknown[]).map(Number).filter(id => !isNaN(id));
@@ -133,7 +150,7 @@ export async function POST(req: NextRequest) {
         .replace("{{candidate_answer}}", transcript)
         .replace("{{context}}", contextText);
 
-      const { text: evaluationResponse, provider: _evalP } = await generateLLMResponse(evaluatorPrompt + "\n\nReply in strict JSON format.", forceProvider);
+      const { text: evaluationResponse, provider: _evalP } = await generateLLMResponse(evaluatorPrompt + "\n\nReply in strict JSON format.", effectiveProvider);
       providerUsed = providerUsed || _evalP;
       
       try {
@@ -227,7 +244,7 @@ export async function POST(req: NextRequest) {
       .replace("{{weak_concepts}}", nextParams.weakConcepts.join(", "))
       .replace("{{remaining_concepts}}", ""); 
 
-    const { text: nextQResponse, provider: nextProvider } = await generateLLMResponse(generatorPrompt + "\n\nReply in strict JSON format.", forceProvider);
+    const { text: nextQResponse, provider: nextProvider } = await generateLLMResponse(generatorPrompt + "\n\nReply in strict JSON format.", effectiveProvider);
     providerUsed = nextProvider || providerUsed;
     let nextQJson;
     try {

@@ -38,11 +38,26 @@ model Document {
   institution      String?
   semester         String?
   subject          String?
+  /// ADMIN_MASTER | INTERVIEWER_PRIVATE | SYNCED_FROM_ADMIN
+  docSource        String          @default("INTERVIEWER_PRIVATE")
+  /// For SYNCED_FROM_ADMIN docs: references the original admin Document.id
+  adminDocId       Int?
   user             User            @relation(fields: [userId], references: [id])
   chunks           DocumentChunk[]
 
   @@index([userId])
   @@index([subject])
+  @@index([docSource])
+  @@index([adminDocId])
+}
+
+model AppSettings {
+  id        Int      @id @default(autoincrement())
+  key       String   @unique
+  value     String
+  updatedAt DateTime @updatedAt
+
+  @@index([key])
 }
 
 model DocumentChunk {

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAppSession } from "@/lib/auth";
 import prisma from "@/lib/db";
 
+import { formatInterviewerName } from "@/lib/formatters";
+
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ sessionId: string }> }
@@ -29,6 +31,8 @@ export async function GET(
           select: {
             id: true,
             username: true,
+            email: true,
+            candidate: { select: { name: true } }
           },
         },
         report: true,
@@ -104,7 +108,7 @@ export async function GET(
       },
       interviewer: {
         id: session.interviewer?.id || null,
-        username: session.interviewer?.username || "System",
+        username: formatInterviewerName(session.interviewer),
       },
       report: session.report,
       questions,

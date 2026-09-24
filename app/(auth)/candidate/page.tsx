@@ -6,6 +6,8 @@ import Icon from '@/components/Icon'
 import Link from 'next/link'
 import { getAppSession } from '@/lib/auth'
 
+import { formatInterviewerName } from '@/lib/formatters'
+
 export default async function CandidateProfilePage({
   searchParams,
 }: {
@@ -84,7 +86,7 @@ export default async function CandidateProfilePage({
       prisma.interviewSession.findMany({
         where: { candidateId: candidate.id },
         include: {
-          interviewer: { select: { username: true } },
+          interviewer: { select: { username: true, email: true, candidate: { select: { name: true } } } },
           report: { select: { id: true, overallScore: true, executiveSummary: true, strengths: true, weaknesses: true } },
           questions: {
             include: {
@@ -251,7 +253,7 @@ export default async function CandidateProfilePage({
                         <div>
                           <div style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--color-text-primary)' }}>{subject}</div>
                           <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', marginTop: '0.2rem' }}>
-                            Interviewer: {s.interviewer?.username || 'System'} &bull; Date: {new Date(s.startedAt).toLocaleDateString()}
+                            Interviewer: {formatInterviewerName(s.interviewer)} &bull; Date: {new Date(s.startedAt).toLocaleDateString()}
                           </div>
                           {s.report?.executiveSummary && (
                             <p style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)', margin: '0.5rem 0 0 0', maxWidth: '800px', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
@@ -338,7 +340,7 @@ export default async function CandidateProfilePage({
                       const isCompleted = sess.status === 'completed' || sess.report !== null
                       const isActive = sess.status === 'active'
                       const hasAnswers = sess.questions.some(q => q.answer !== null)
-                      const interviewerName = sess.interviewer?.username || 'System'
+                      const interviewerName = formatInterviewerName(sess.interviewer)
 
                       const statusLabel = isCompleted 
                         ? 'Completed' 

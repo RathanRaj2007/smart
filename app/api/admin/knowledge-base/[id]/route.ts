@@ -1,9 +1,8 @@
 import { NextResponse, NextRequest } from 'next/server'
-
 import { getAppSession } from '@/lib/auth'
 import prisma from '@/lib/db'
 
-// DELETE /api/documents/[id]
+// DELETE /api/admin/knowledge-base/[id]
 export async function DELETE(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
@@ -14,6 +13,9 @@ export async function DELETE(
 
     if (!session?.isLoggedIn || !session.userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    if (session.role !== 'ADMIN') {
+      return NextResponse.json({ error: 'Forbidden — Admin only' }, { status: 403 })
     }
 
     const { id: idStr } = await context.params
@@ -26,47 +28,35 @@ export async function DELETE(
     if (!doc) {
       return NextResponse.json({ error: 'Document not found' }, { status: 404 })
     }
-
-    // Server-side ownership: user can only delete their own documents
-    if (doc.userId !== session.userId) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    if (doc.docSource !== 'ADMIN_MASTER') {
+      return NextResponse.json({ error: 'Not an admin master document' }, { status: 400 })
     }
 
-    // Interviewers cannot delete admin master documents via this endpoint
-    if (doc.docSource === 'ADMIN_MASTER') {
-      return NextResponse.json({ error: 'Forbidden — Admin master documents cannot be deleted here' }, { status: 403 })
+    // Delete file from disk (best-effort)
+    try {
+      const { promises: fs } = await import('fs')
+      if (doc.storagePath) await fs.unlink(doc.storagePath)
+    } catch (e: unknown) {
+      const err = e as NodeJS.ErrnoException
+      if (err?.code !== 'ENOENT') console.error('File delete error:', e)
     }
 
-    // For SYNCED_FROM_ADMIN docs, only delete the local reference (not the underlying file)
-    const isSharedFile = doc.docSource === 'SYNCED_FROM_ADMIN'
-
-    if (!isSharedFile) {
-      // Delete file from disk (best-effort) only for private docs
-      try {
-        const { promises: fs } = await import('fs')
-        if (doc.storagePath) await fs.unlink(doc.storagePath)
-      } catch (e: unknown) {
-        const err = e as NodeJS.ErrnoException
-        if (err?.code !== 'ENOENT') console.error('File delete error:', e)
-      }
-    }
-
-    // Cascade deletes DocumentChunk rows automatically (onDelete: Cascade)
+    // Delete admin document (chunks cascade automatically)
     await prisma.document.delete({ where: { id } })
 
     const { createAuditLog } = await import('@/lib/audit-log')
     createAuditLog({
       userId: session.userId,
       username: session.username,
-      action: 'KNOWLEDGE_DOCUMENT_DELETED',
+      action: 'ADMIN_KB_DOCUMENT_DELETED',
       entityType: 'Document',
       entityId: id.toString(),
-      metadata: { name: doc.name, docSource: doc.docSource }
+      metadata: { name: doc.name }
     })
 
     return NextResponse.json({ success: true })
   } catch (err) {
-    console.error('Delete document error:', err)
+    console.error('Admin KB delete error:', err)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

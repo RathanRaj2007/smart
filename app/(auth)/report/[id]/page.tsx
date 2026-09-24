@@ -7,6 +7,8 @@ import Link from "next/link";
 import { getAppSession } from "@/lib/auth";
 import Icon from "@/components/Icon";
 
+import { formatInterviewerName } from "@/lib/formatters";
+
 export default async function ReportPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = await params;
   
@@ -27,7 +29,9 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
       candidate: true,
       interviewer: {
         select: {
-          username: true
+          username: true,
+          email: true,
+          candidate: { select: { name: true } }
         }
       },
       report: true,
@@ -70,7 +74,7 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
   const scope = (session.scope as { subject?: string; mode?: string } | null);
   const subject = scope?.subject || session.interviewType || 'Technical Interview';
   const mode = scope?.mode || 'standard';
-  const interviewerName = session.interviewer?.username || 'System';
+  const interviewerName = formatInterviewerName(session.interviewer);
   const isCompleted = session.status === 'completed';
   const displayScore = session.score !== null 
     ? `${session.score.toFixed(1)}%` 

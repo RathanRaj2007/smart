@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { getAppSession } from '@/lib/auth'
 import prisma from '@/lib/db'
 
-// GET /api/documents — list documents for the logged-in user (private + synced from admin)
+// GET /api/admin/knowledge-base — list ALL admin master documents
 export async function GET(request: Request) {
   try {
     const response = NextResponse.json({})
@@ -11,12 +11,12 @@ export async function GET(request: Request) {
     if (!session?.isLoggedIn || !session.userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
-
-    // Build base where clause — always filter by userId (ownership)
-    const where: { userId: number } = { userId: session.userId }
+    if (session.role !== 'ADMIN') {
+      return NextResponse.json({ error: 'Forbidden — Admin only' }, { status: 403 })
+    }
 
     const documents = await prisma.document.findMany({
-      where,
+      where: { docSource: 'ADMIN_MASTER' },
       orderBy: { createdAt: 'desc' },
       include: {
         _count: { select: { chunks: true } },
@@ -30,21 +30,20 @@ export async function GET(request: Request) {
       fileType: d.fileType,
       fileSize: d.fileSize,
       status: d.status,
-      docSource: d.docSource,
-      adminDocId: d.adminDocId,
       createdAt: d.createdAt,
       updatedAt: d.updatedAt,
+      docSource: d.docSource,
       chunkCount: d._count.chunks,
     }))
 
     return NextResponse.json({ documents: safe })
   } catch (err) {
-    console.error('Fetch documents error:', err)
+    console.error('Admin KB fetch error:', err)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
 
-// POST /api/documents — upload and process a document (always INTERVIEWER_PRIVATE)
+// POST /api/admin/knowledge-base — upload document as ADMIN_MASTER
 export async function POST(request: Request) {
   try {
     const response = NextResponse.json({})
@@ -52,6 +51,9 @@ export async function POST(request: Request) {
 
     if (!session?.isLoggedIn || !session.userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    if (session.role !== 'ADMIN') {
+      return NextResponse.json({ error: 'Forbidden — Admin only' }, { status: 403 })
     }
 
     const form = await request.formData()
@@ -82,10 +84,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unsupported file type' }, { status: 400 })
     }
 
-    // Save file to storage
     const { promises: fs } = await import('fs')
     const path = await import('path')
-    const storageDir = path.join(process.cwd(), 'storage', 'knowledge-docs')
+    const storageDir = path.join(process.cwd(), 'storage', 'admin-kb-docs')
     await fs.mkdir(storageDir, { recursive: true })
 
     const originalFilename = file.name ?? `upload-${Date.now()}`
@@ -96,7 +97,6 @@ export async function POST(request: Request) {
     const buffer = Buffer.from(await file.arrayBuffer())
     await fs.writeFile(storagePath, buffer)
 
-    // Create DB record — always INTERVIEWER_PRIVATE for this endpoint
     const doc = await prisma.document.create({
       data: {
         name: title || originalFilename,
@@ -106,7 +106,7 @@ export async function POST(request: Request) {
         storagePath,
         status: 'UPLOADED',
         userId: session.userId,
-        docSource: 'INTERVIEWER_PRIVATE',
+        docSource: 'ADMIN_MASTER',
       },
     })
 
@@ -114,20 +114,20 @@ export async function POST(request: Request) {
     createAuditLog({
       userId: session.userId,
       username: session.username,
-      action: 'KNOWLEDGE_DOCUMENT_UPLOADED',
+      action: 'ADMIN_KB_DOCUMENT_UPLOADED',
       entityType: 'Document',
       entityId: doc.id.toString(),
       metadata: { name: doc.name, fileSize: doc.fileSize, fileType: doc.fileType }
     })
 
-    // Kick off background processing (extract text → chunks)
+    // Kick off background processing
     import('@/lib/knowledge-base/processDocument')
       .then(({ processDocument }) => processDocument(doc.id))
       .catch((e) => console.error('Background processing error:', e))
 
     return NextResponse.json({ success: true, document: { id: doc.id, status: 'UPLOADED' } }, { status: 202 })
   } catch (err) {
-    console.error('Upload error:', err)
+    console.error('Admin KB upload error:', err)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

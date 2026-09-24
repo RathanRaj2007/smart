@@ -58,13 +58,22 @@ export async function POST(req: NextRequest) {
 
     const gapTexts = session.gaps.map(g => `${g.concept} (${g.evidence})`).join("; ");
 
+    const scope = (session.scope as Record<string, unknown>) || {};
+    const { cookies } = await import("next/headers");
+    const cookieStore = await cookies();
+    const storedLLM = cookieStore.get('selectedLLM')?.value;
+    const sessionLLM = (scope.llmProvider as string) || undefined;
+    const effectiveProvider = (forceProvider && (forceProvider === 'gemini' || forceProvider === 'groq'))
+      ? forceProvider
+      : (sessionLLM || (storedLLM === 'groq' || storedLLM === 'gemini' ? storedLLM : 'gemini'));
+
     const prompt = REPORT_GENERATOR_PROMPT
       .replace("{{candidateId}}", session.candidateId)
       .replace("{{totalQuestions}}", session.questions.length.toString())
       .replace("{{averageScore}}", avgScore.toFixed(2))
       .replace("{{gaps}}", gapTexts);
 
-    const { text: reportRes, provider } = await generateLLMResponse(prompt + "\n\nOutput JSON only.", forceProvider);
+    const { text: reportRes, provider } = await generateLLMResponse(prompt + "\n\nOutput JSON only.", effectiveProvider);
     
     let reportJson: Record<string, unknown> | null = null;
     try {

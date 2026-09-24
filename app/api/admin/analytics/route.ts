@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getAppSession } from '@/lib/auth'
 import prisma from '@/lib/db'
+import { formatInterviewerName } from '@/lib/formatters'
 
 export async function GET(request: Request) {
   try {
@@ -75,6 +76,8 @@ export async function GET(request: Request) {
         select: {
           id: true,
           username: true,
+          email: true,
+          candidate: { select: { name: true } },
           createdAt: true,
           _count: {
             select: { sessions: true },
@@ -174,7 +177,7 @@ export async function GET(request: Request) {
 
       return {
         id: user.id,
-        username: user.username,
+        username: formatInterviewerName(user),
         totalInterviews: totalSess,
         completedInterviews: compSess,
         averageScore: avgSc,

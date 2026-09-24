@@ -71,7 +71,6 @@ export default function InterviewPage() {
   const [candidateList, setCandidateList] = useState<CandidateOption[]>([]);
   const [selectedCandidateId, setSelectedCandidateId] = useState<string>('');
   const [candidateNameInput, setCandidateNameInput] = useState<string>('');
-  const [subject, setSubject] = useState('Data Structures');
   const [difficulty, setDifficulty] = useState('intermediate');
   const [setupMode, setSetupMode] = useState('standard');
   const [setupData, setSetupData] = useState('');
@@ -193,7 +192,7 @@ export default function InterviewPage() {
 
           const scope = data.session?.scope || {};
           if (scope.mode) setSetupMode(scope.mode);
-          if (scope.subject) setSubject(scope.subject);
+          if (scope.llmProvider) setSelectedLLM(scope.llmProvider);
           if (Array.isArray(scope.selectedDocumentIds)) setSelectedDocIds(scope.selectedDocumentIds);
           if (data.session?.difficulty) setDifficulty(data.session.difficulty);
 
@@ -242,7 +241,6 @@ export default function InterviewPage() {
         body: JSON.stringify({
           candidateId: selectedCandidateId || undefined,
           candidateName: activeCandidateName,
-          subject: subject,
           difficulty: difficulty,
           mode: setupMode,
           setupData: finalSetupData,
@@ -567,7 +565,7 @@ export default function InterviewPage() {
             {session ? `Live Interview: ${session.candidateName || 'Candidate'}` : 'Live Interviewer Workspace'}
           </h1>
           <p style={{ margin: '0.2rem 0 0 0', color: 'var(--color-text-secondary)', fontSize: '0.85rem' }}>
-            {session ? `Subject: ${subject} • Mode: ${setupMode}` : 'Interviewer conducts the live candidate evaluation session.'}
+            {session ? `Mode: ${setupMode}` : 'Interviewer conducts the live candidate evaluation session.'}
           </p>
         </div>
 
@@ -608,7 +606,7 @@ export default function InterviewPage() {
                 </div>
                 <h2 style={{ color: 'var(--color-text-primary)', margin: '0 0 0.5rem 0', fontSize: '1.5rem', fontWeight: 700 }}>Configure Live Interview</h2>
                 <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.9rem', margin: 0 }}>
-                  Set up candidate details, domain subject, difficulty, and RAG Knowledge Base parameters.
+                  Set up candidate details, difficulty, interview mode, and Knowledge Base parameters.
                 </p>
               </div>
 
@@ -652,31 +650,18 @@ export default function InterviewPage() {
                   )}
                 </div>
 
-                {/* Subject & Difficulty */}
-                <div className="interview-sub-diff-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                  <div>
-                    <label style={{ display: 'block', color: 'var(--color-text-secondary)', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.5rem' }}>Subject / Domain</label>
-                    <input
-                      type="text"
-                      value={subject}
-                      onChange={(e) => setSubject(e.target.value)}
-                      placeholder="e.g. Data Structures"
-                      style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--color-card-border)', background: 'var(--color-bg-secondary)', color: 'var(--color-text-primary)', fontSize: '0.9rem' }}
-                    />
-                  </div>
-
-                  <div>
-                    <label style={{ display: 'block', color: 'var(--color-text-secondary)', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.5rem' }}>Difficulty</label>
-                    <select
-                      value={difficulty}
-                      onChange={(e) => setDifficulty(e.target.value)}
-                      style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--color-card-border)', background: 'var(--color-bg-secondary)', color: 'var(--color-text-primary)', fontSize: '0.9rem' }}
-                    >
-                      <option value="beginner">Beginner (Junior)</option>
-                      <option value="intermediate">Intermediate (Mid-Level)</option>
-                      <option value="advanced">Advanced (Senior / Architect)</option>
-                    </select>
-                  </div>
+                {/* Difficulty */}
+                <div>
+                  <label style={{ display: 'block', color: 'var(--color-text-secondary)', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.5rem' }}>Difficulty</label>
+                  <select
+                    value={difficulty}
+                    onChange={(e) => setDifficulty(e.target.value)}
+                    style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--color-card-border)', background: 'var(--color-bg-secondary)', color: 'var(--color-text-primary)', fontSize: '0.9rem' }}
+                  >
+                    <option value="beginner">Beginner (Junior)</option>
+                    <option value="intermediate">Intermediate (Mid-Level)</option>
+                    <option value="advanced">Advanced (Senior / Architect)</option>
+                  </select>
                 </div>
 
                 {/* Interview Mode */}
@@ -758,7 +743,7 @@ export default function InterviewPage() {
 
                 <button
                   onClick={startLiveInterview}
-                  disabled={isProcessing || (!candidateNameInput.trim() && !selectedCandidateId) || !subject.trim() || (setupMode === 'knowledge-base' && selectedDocIds.length === 0)}
+                  disabled={isProcessing || (!candidateNameInput.trim() && !selectedCandidateId) || (setupMode === 'knowledge-base' && selectedDocIds.length === 0)}
                   style={{
                     marginTop: '1rem',
                     padding: '1rem',
@@ -788,7 +773,7 @@ export default function InterviewPage() {
                     QUESTION {currentQuestion.questionNumber}
                   </span>
                   <span style={{ color: 'var(--color-text-secondary)', fontSize: '0.8rem', background: 'var(--color-bg-tertiary)', padding: '4px 10px', borderRadius: '12px', border: '1px solid var(--color-card-border)' }}>
-                    {currentQuestion.topic || subject} &bull; <span style={{ textTransform: 'capitalize' }}>{currentQuestion.difficulty || difficulty}</span>
+                    {currentQuestion.topic || 'Technical Question'} &bull; <span style={{ textTransform: 'capitalize' }}>{currentQuestion.difficulty || difficulty}</span>
                   </span>
                 </div>
 
@@ -1036,7 +1021,6 @@ export default function InterviewPage() {
               <div style={{ background: 'var(--color-bg-secondary)', border: '1px solid var(--color-card-border)', borderRadius: '10px', padding: '1rem' }}>
                 <div style={{ color: 'var(--color-text-muted)', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', marginBottom: '0.5rem' }}>Candidate</div>
                 <div style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--color-text-primary)' }}>{session.candidateName || 'Candidate'}</div>
-                <div style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)', marginTop: '0.2rem' }}>Subject: {subject}</div>
               </div>
 
               {/* Progress & Live Score */}

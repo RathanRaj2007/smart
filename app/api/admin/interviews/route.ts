@@ -3,6 +3,8 @@ import { getAppSession } from '@/lib/auth'
 import prisma from '@/lib/db'
 import { Prisma } from '@prisma/client'
 
+import { formatInterviewerName } from '@/lib/formatters'
+
 export async function GET(request: Request) {
   try {
     const response = NextResponse.json({})
@@ -38,7 +40,7 @@ export async function GET(request: Request) {
       ]
     }
 
-    const [total, interviews] = await Promise.all([
+    const [total, rawInterviews] = await Promise.all([
       prisma.interviewSession.count({ where }),
       prisma.interviewSession.findMany({
         where,
@@ -54,7 +56,9 @@ export async function GET(request: Request) {
             select: {
               id: true,
               username: true,
+              email: true,
               role: true,
+              candidate: { select: { name: true } },
             },
           },
           report: {
@@ -74,6 +78,18 @@ export async function GET(request: Request) {
         take: limit,
       }),
     ])
+
+    const interviews = rawInterviews.map((item) => ({
+      ...item,
+      interviewer: item.interviewer
+        ? {
+            id: item.interviewer.id,
+            username: item.interviewer.username,
+            displayName: formatInterviewerName(item.interviewer),
+            role: item.interviewer.role,
+          }
+        : null,
+    }))
 
     return NextResponse.json({
       interviews,
