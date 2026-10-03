@@ -3,7 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev:next": "next dev",
+    "dev": "concurrently -c \"cyan,magenta\" -n \"APP,WORKER\" \"npm run dev:next\" \"npm run worker\"",
     "worker": "tsx worker.ts",
     "build": "next build",
     "start": "next start",
@@ -43,6 +44,7 @@
     "@types/nodemailer": "^8.0.2",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "concurrently": "^10.0.5",
     "eslint": "^9.0.0",
     "eslint-config-next": "^15.3.3",
     "prisma": "^6.3.0",

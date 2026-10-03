@@ -38,16 +38,10 @@ npm run db:seed
 
 ## 4. Run the Application
 
-To run the application locally, you need **two** separate terminal windows.
+To start both the Next.js web application and the background worker concurrently, run:
 
-**Terminal 1: Start the Next.js web application**
 ```bash
 npm run dev
 ```
-*(The app will be available at http://localhost:3000)*
 
-**Terminal 2: Start the background processor**
-```bash
-npm run worker
-```
-*(This worker handles background tasks like splitting PDF documents and generating AI embeddings for the Knowledge Base).*
+*(This starts the Next.js server at http://localhost:3000 and the background task processor in the same terminal)*
