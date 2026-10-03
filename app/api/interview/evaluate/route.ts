@@ -134,11 +134,11 @@ export async function POST(req: NextRequest) {
       // 3. RAG Retrieval for Evaluation Context
       let searchResults: Awaited<ReturnType<typeof searchChunks>> = [];
       if (isKnowledgeMode) {
-        searchResults = await searchChunks(question.content + " " + transcript, userSession.userId, 5, selectedDocIds);
+        searchResults = await searchChunks(question.content + " " + transcript, (question.session.interviewerId || userSession.userId), 5, selectedDocIds);
       } else if (mode === "keywords") {
-        searchResults = await searchChunks(`[${scope.subject || ''}] ${setupData} ${question.content}`, userSession.userId, 5);
+        searchResults = await searchChunks(`[${scope.subject || ''}] ${setupData} ${question.content}`, (question.session.interviewerId || userSession.userId), 5);
       } else {
-        searchResults = await searchChunks(question.content + " " + transcript, userSession.userId, 5);
+        searchResults = await searchChunks(question.content + " " + transcript, (question.session.interviewerId || userSession.userId), 5);
       }
       const contextText = searchResults.map(r => r.content).join("\n\n");
 
@@ -225,13 +225,13 @@ export async function POST(req: NextRequest) {
     
     let contextTextNext = "";
     if (mode === "keywords") {
-      const searchResultsNext = await searchChunks(`[${scope.subject || ''}] ${setupData} ${question.content}`, userSession.userId, 3);
+      const searchResultsNext = await searchChunks(`[${scope.subject || ''}] ${setupData} ${question.content}`, (question.session.interviewerId || userSession.userId), 3);
       contextTextNext = "FOCUS STRICTLY ON THESE KEYWORDS: " + setupData + "\n\n" + searchResultsNext.map(r => r.content).join("\n\n");
     } else if (isKnowledgeMode) {
-      const searchResultsNext = await searchChunks(question.content, userSession.userId, 10, selectedDocIds);
+      const searchResultsNext = await searchChunks(question.content, (question.session.interviewerId || userSession.userId), 10, selectedDocIds);
       contextTextNext = "RESTRICT ALL QUESTIONS STRICTLY TO THE FOLLOWING KNOWLEDGE BASE MATERIAL ONLY. DO NOT ASK ANYTHING OUTSIDE THIS MATERIAL:\n\n" + searchResultsNext.map(r => r.content).join("\n\n");
     } else {
-      const searchResultsNext = await searchChunks(question.content, userSession.userId, 3);
+      const searchResultsNext = await searchChunks(question.content, (question.session.interviewerId || userSession.userId), 3);
       contextTextNext = searchResultsNext.map(r => r.content).join("\n\n");
     }
     

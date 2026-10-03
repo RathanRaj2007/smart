@@ -20,7 +20,6 @@ model User {
   sessions     InterviewSession[]
   auditLogs    AuditLog[]
   candidate    Candidate?
-  otps         OtpVerification[]
 }
 
 model Document {
@@ -66,7 +65,7 @@ model DocumentChunk {
   content    String
   chunkIndex Int
   createdAt  DateTime               @default(now())
-  embedding  Unsupported("vector")?
+  embedding  Unsupported("vector(384)")?
   pageNumber Int?
   sourceType String?
   topic      String?
@@ -192,20 +191,5 @@ model AuditLog {
   @@index([entityType, entityId])
 }
 
-model OtpVerification {
-  id        String    @id @default(uuid())
-  userId    Int?
-  email     String
-  otpHash   String
-  expiresAt DateTime
-  attempts  Int       @default(0)
-  usedAt    DateTime?
-  createdAt DateTime  @default(now())
-  user      User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([email])
-  @@index([userId])
-  @@index([expiresAt])
-}
 
 

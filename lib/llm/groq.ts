@@ -36,25 +36,38 @@ export async function generateGroqResponse(prompt: string): Promise<string> {
   // Only use json_object if the prompt explicitly asks for JSON
   const isJsonRequest = prompt.toLowerCase().includes('json');
 
-  const completion = await groq.chat.completions.create({
-    messages: [
-      {
-        role: 'user',
-        content: prompt,
-      },
-    ],
-    model: GROQ_MODEL,
-    ...(isJsonRequest ? { response_format: { type: "json_object" } } : {})
-  })
+  // Add 60s timeout
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 60000);
 
-  const content = completion.choices[0]?.message?.content || ''
-    
-  // Remove reasoning tags if the model includes them
-  const cleanedContent = content.replace(/<think>[\s\S]*?<\/think>/g, '').trim()
-    
-  if (!cleanedContent) {
-    throw new Error('[groq] Empty response received from Groq API')
+  try {
+    const completion = await groq.chat.completions.create({
+      messages: [
+        {
+          role: 'user',
+          content: prompt,
+        },
+      ],
+      model: GROQ_MODEL,
+      ...(isJsonRequest ? { response_format: { type: "json_object" } } : {})
+    }, { signal: controller.signal as AbortSignal });
+
+    const content = completion.choices[0]?.message?.content || ''
+      
+    // Remove reasoning tags if the model includes them
+    const cleanedContent = content.replace(/<think>[\s\S]*?<\/think>/g, '').trim()
+      
+    if (!cleanedContent) {
+      throw new Error('[groq] Empty response received from Groq API')
+    }
+
+    return cleanedContent;
+  } catch (err: unknown) {
+    if ((err as Error).name === 'AbortError' || (err as Error).message.includes('aborted')) {
+      throw new Error('[groq] Request timed out after 60 seconds');
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeoutId);
   }
-
-  return cleanedContent
 }

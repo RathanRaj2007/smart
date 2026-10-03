@@ -121,9 +121,14 @@ export async function POST(request: Request) {
     })
 
     // Kick off background processing (extract text → chunks)
-    import('@/lib/knowledge-base/processDocument')
-      .then(({ processDocument }) => processDocument(doc.id))
-      .catch((e) => console.error('Background processing error:', e))
+    const { documentQueue } = await import('@/lib/queue');
+    await documentQueue.add('process-document', { documentId: doc.id }, {
+      jobId: `doc-${doc.id}`,
+      attempts: 3,
+      backoff: { type: 'exponential', delay: 5000 },
+      removeOnComplete: true,
+      removeOnFail: 100
+    });
 
     return NextResponse.json({ success: true, document: { id: doc.id, status: 'UPLOADED' } }, { status: 202 })
   } catch (err) {

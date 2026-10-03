@@ -35,10 +35,14 @@ export async function POST(
     // Reset status to allow reprocessing
     await prisma.document.update({ where: { id }, data: { status: 'UPLOADED' } })
 
-    // Kick off background processing
-    import('@/lib/knowledge-base/processDocument')
-      .then(({ processDocument }) => processDocument(id))
-      .catch((e) => console.error('Reprocess error:', e))
+    const { documentQueue } = await import('@/lib/queue');
+    await documentQueue.add('process-document', { documentId: id }, {
+      jobId: `doc-${id}`,
+      attempts: 3,
+      backoff: { type: 'exponential', delay: 5000 },
+      removeOnComplete: true,
+      removeOnFail: 100
+    });
 
     return NextResponse.json({ success: true, message: 'Processing started' })
   } catch (err) {

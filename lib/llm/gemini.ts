@@ -64,13 +64,27 @@ export async function generateGeminiResponse(prompt: string): Promise<string> {
 
   const model = getGeminiModel()
 
-  const result = await model.generateContent(prompt)
-  const response = result.response
-  const text = response.text()
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 60000);
 
-  if (!text) {
-    throw new Error('[gemini] Empty response received from Gemini API')
+  try {
+    const result = await model.generateContent({
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+    }, { signal: controller.signal })
+    const response = result.response
+    const text = response.text()
+
+    if (!text) {
+      throw new Error('[gemini] Empty response received from Gemini API')
+    }
+
+    return text
+  } catch (err: unknown) {
+    if ((err as Error).name === 'AbortError' || (err as Error).message.includes('aborted')) {
+      throw new Error('[gemini] Request timed out after 60 seconds');
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeoutId);
   }
-
-  return text
 }

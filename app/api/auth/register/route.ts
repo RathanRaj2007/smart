@@ -1,8 +1,6 @@
 import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import prisma from '@/lib/db';
-import { generateSecureOtp, hashOtp } from '@/lib/otp';
-import { sendOtpEmail } from '@/lib/mail';
 
 const PASSWORD_MIN_LENGTH = 8;
 

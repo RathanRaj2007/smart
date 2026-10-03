@@ -109,103 +109,110 @@ export async function POST(req: NextRequest) {
       ? forceProvider
       : (storedLLM === 'groq' || storedLLM === 'gemini' ? storedLLM : 'gemini');
 
-    // Create Session
-    const session = await prisma.interviewSession.create({
-      data: {
-        candidateId: candidate.id,
-        interviewerId: userId,
-        status: "active",
-        difficulty: difficulty || "medium",
-        interviewType: "Adaptive",
-        scope: {
-          subject: subject,
-          mode: mode || "standard",
-          setupData: setupData || "",
-          selectedDocumentIds: selectedDocIds || null,
-          llmProvider: chosenProvider
+    let session = null;
+    try {
+      session = await prisma.interviewSession.create({
+        data: {
+          candidateId: candidate.id,
+          interviewerId: userId,
+          status: "active",
+          difficulty: difficulty || "medium",
+          interviewType: "Adaptive",
+          scope: {
+            subject: subject,
+            mode: mode || "standard",
+            setupData: setupData || "",
+            selectedDocumentIds: selectedDocIds || null,
+            llmProvider: chosenProvider
+          }
+        }
+      });
+
+      // Audit log interview created
+      const auditAction = userRole === 'CANDIDATE' ? 'CANDIDATE_INTERVIEW_STARTED' : 'INTERVIEW_CREATED';
+      createAuditLog({
+        userId,
+        username,
+        action: auditAction,
+        entityType: 'InterviewSession',
+        entityId: session.id,
+        metadata: { candidateName: candidate.name, subject, mode: mode || 'standard', selectedDocumentIds: selectedDocIds, llmProvider: chosenProvider }
+      });
+
+      let contextText = "";
+      let topicToStart = "Fundamentals";
+
+      if (mode === "keywords" && setupData) {
+        // Focus on these keywords
+        const searchResults = await searchChunks(`[${subject}] ${setupData}`, userId);
+        contextText = "FOCUS STRICTLY ON THESE KEYWORDS: " + setupData + "\n\n" + searchResults.map(r => r.content).join("\n\n");
+        topicToStart = "Keyword Focused";
+      } else if (isKnowledgeMode) {
+        // Focus strictly on the selected uploaded knowledge base documents
+        const searchResults = await searchChunks(`[${subject}]`, userId, 20, selectedDocIds);
+        contextText = "RESTRICT ALL QUESTIONS STRICTLY TO THE FOLLOWING KNOWLEDGE BASE MATERIAL ONLY. DO NOT ASK ANYTHING OUTSIDE THIS MATERIAL:\n\n" + searchResults.map(r => r.content).join("\n\n");
+        topicToStart = "Knowledge Base Based";
+      } else {
+        // Standard RAG
+        const searchResults = await searchChunks(`[${subject}] basics introduction definition core concepts`, userId);
+        contextText = searchResults.map(r => r.content).join("\n\n");
+      }
+
+      const generatorPrompt = QUESTION_GENERATOR_PROMPT
+        .replace("{{subject}}", subject)
+        .replace("{{topic}}", topicToStart)
+        .replace("{{difficulty}}", "easy")
+        .replace("{{context}}", contextText)
+        .replace("{{previous_questions}}", "None")
+        .replace("{{weak_concepts}}", "None")
+        .replace("{{remaining_concepts}}", "All");
+
+      const { text: nextQResponse, provider } = await generateLLMResponse(generatorPrompt + "\n\nReply in strict JSON format.", chosenProvider);
+      
+      let nextQJson;
+      try {
+        nextQJson = JSON.parse(nextQResponse);
+      } catch {
+        const cleaned = nextQResponse.replace(/\`\`\`json/g, "").replace(/\`\`\`/g, "").trim();
+        try {
+          nextQJson = JSON.parse(cleaned);
+        } catch {
+          nextQJson = { suggestions: [{ question: "What is an algorithm?", type: "Conceptual", difficulty: "easy", topic: "Basics" }] };
         }
       }
-    });
 
-    // Audit log interview created
-    const auditAction = userRole === 'CANDIDATE' ? 'CANDIDATE_INTERVIEW_STARTED' : 'INTERVIEW_CREATED';
-    createAuditLog({
-      userId,
-      username,
-      action: auditAction,
-      entityType: 'InterviewSession',
-      entityId: session.id,
-      metadata: { candidateName: candidate.name, subject, mode: mode || 'standard', selectedDocumentIds: selectedDocIds, llmProvider: chosenProvider }
-    });
+      const suggestion = nextQJson.suggestions?.[0] || nextQJson;
 
-    let contextText = "";
-    let topicToStart = "Fundamentals";
+      const firstQuestion = await prisma.question.create({
+        data: {
+          sessionId: session.id,
+          questionNumber: 1,
+          content: suggestion.question || "What is an algorithm?",
+          type: suggestion.type || "Conceptual",
+          difficulty: suggestion.difficulty || "easy",
+          topic: suggestion.topic || "Fundamentals",
+          expectedAnswer: suggestion.expected_answer || "",
+          coreConcepts: suggestion.concepts || [],
+          requiredKeywords: suggestion.required_keywords || []
+        }
+      });
 
-    if (mode === "keywords" && setupData) {
-      // Focus on these keywords
-      const searchResults = await searchChunks(`[${subject}] ${setupData}`, userId);
-      contextText = "FOCUS STRICTLY ON THESE KEYWORDS: " + setupData + "\n\n" + searchResults.map(r => r.content).join("\n\n");
-      topicToStart = "Keyword Focused";
-    } else if (isKnowledgeMode) {
-      // Focus strictly on the selected uploaded knowledge base documents
-      const searchResults = await searchChunks(`[${subject}]`, userId, 20, selectedDocIds);
-      contextText = "RESTRICT ALL QUESTIONS STRICTLY TO THE FOLLOWING KNOWLEDGE BASE MATERIAL ONLY. DO NOT ASK ANYTHING OUTSIDE THIS MATERIAL:\n\n" + searchResults.map(r => r.content).join("\n\n");
-      topicToStart = "Knowledge Base Based";
-    } else {
-      // Standard RAG
-      const searchResults = await searchChunks(`[${subject}] basics introduction definition core concepts`, userId);
-      contextText = searchResults.map(r => r.content).join("\n\n");
-    }
-
-    const generatorPrompt = QUESTION_GENERATOR_PROMPT
-      .replace("{{subject}}", subject)
-      .replace("{{topic}}", topicToStart)
-      .replace("{{difficulty}}", "easy")
-      .replace("{{context}}", contextText)
-      .replace("{{previous_questions}}", "None")
-      .replace("{{weak_concepts}}", "None")
-      .replace("{{remaining_concepts}}", "All");
-
-    const { text: nextQResponse, provider } = await generateLLMResponse(generatorPrompt + "\n\nReply in strict JSON format.", chosenProvider);
-    
-    let nextQJson;
-    try {
-      nextQJson = JSON.parse(nextQResponse);
-    } catch {
-      const cleaned = nextQResponse.replace(/\`\`\`json/g, "").replace(/\`\`\`/g, "").trim();
-      try {
-        nextQJson = JSON.parse(cleaned);
-      } catch {
-        nextQJson = { suggestions: [{ question: "What is an algorithm?", type: "Conceptual", difficulty: "easy", topic: "Basics" }] };
-      }
-    }
-
-    const suggestion = nextQJson.suggestions?.[0] || nextQJson;
-
-    const firstQuestion = await prisma.question.create({
-      data: {
+      return NextResponse.json({
         sessionId: session.id,
-        questionNumber: 1,
-        content: suggestion.question || "What is an algorithm?",
-        type: suggestion.type || "Conceptual",
-        difficulty: suggestion.difficulty || "easy",
-        topic: suggestion.topic || "Fundamentals",
-        expectedAnswer: suggestion.expected_answer || "",
-        coreConcepts: suggestion.concepts || [],
-        requiredKeywords: suggestion.required_keywords || []
+        candidate: candidate,
+        provider, firstQuestion: {
+          id: firstQuestion.id,
+          content: firstQuestion.content,
+          questionNumber: firstQuestion.questionNumber
+        }
+      });
+      
+    } catch (error: unknown) {
+      if (session) {
+        await prisma.interviewSession.delete({ where: { id: session.id } }).catch(() => {});
       }
-    });
-
-    return NextResponse.json({
-      sessionId: session.id,
-      candidate: candidate,
-      provider, firstQuestion: {
-        id: firstQuestion.id,
-        content: firstQuestion.content,
-        questionNumber: firstQuestion.questionNumber
-      }
-    });
-    
+      throw error;
+    }
   } catch (error: unknown) {
     const { handleLLMError } = await import('@/lib/llm');
     return handleLLMError(error);

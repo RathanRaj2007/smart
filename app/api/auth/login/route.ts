@@ -3,8 +3,7 @@ import bcrypt from 'bcryptjs'
 import prisma from '@/lib/db'
 import { getAppSession, getServerInstanceId } from '@/lib/auth'
 import { createAuditLog } from '@/lib/audit-log'
-import { generateSecureOtp, hashOtp } from '@/lib/otp'
-import { sendOtpEmail } from '@/lib/mail'
+
 
 export async function POST(request: Request) {
   try {

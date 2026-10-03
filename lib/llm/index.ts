@@ -34,38 +34,53 @@ export async function generateLLMResponse(prompt: string, forceProvider?: string
   console.log(`[LLM] Selected provider: ${resolvedProvider}`);
   console.log(`[LLM] Request started`);
 
-  try {
-    if (resolvedProvider === 'groq') {
-      console.log(`[LLM] Groq request started`);
-      const text = await generateGroqResponse(prompt);
-      console.log(`[LLM] Groq request successful`);
-      return { text, provider: 'groq' };
-    } else {
-      console.log(`[LLM] Gemini request started`);
-      const text = await generateGeminiResponse(prompt);
-      console.log(`[LLM] Gemini request successful`);
-      return { text, provider: 'gemini' };
-    }
-  } catch (err: unknown) {
-    const errorMsg = err instanceof Error ? err.message : 'Unknown error';
-    
-    // Log technical detail to server only
-    console.error(`[LLM] ${resolvedProvider} request failed:`, errorMsg);
+  let lastErrorMsg = 'Unknown error';
+  let isKeyError = false;
 
-    // If there's an API key configuration issue, do not ask for fallback endless loop, throw normal error.
-    if (errorMsg.toLowerCase().includes('api key not valid') || errorMsg.toLowerCase().includes('invalid api key')) {
-      throw new Error(`Configuration Error: Invalid ${resolvedProvider} API Key`);
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      if (resolvedProvider === 'groq') {
+        console.log(`[LLM] Groq request started (Attempt ${attempt}/3)`);
+        const text = await generateGroqResponse(prompt);
+        console.log(`[LLM] Groq request successful`);
+        return { text, provider: 'groq' };
+      } else {
+        console.log(`[LLM] Gemini request started (Attempt ${attempt}/3)`);
+        const text = await generateGeminiResponse(prompt);
+        console.log(`[LLM] Gemini request successful`);
+        return { text, provider: 'gemini' };
+      }
+    } catch (err: unknown) {
+      lastErrorMsg = err instanceof Error ? err.message : 'Unknown error';
+      console.error(`[LLM] ${resolvedProvider} request failed on attempt ${attempt}:`, lastErrorMsg);
+      
+      // If there's an API key configuration issue, do not retry
+      if (lastErrorMsg.toLowerCase().includes('api key not valid') || lastErrorMsg.toLowerCase().includes('invalid api key')) {
+        isKeyError = true;
+        break; // break retry loop
+      }
+      
+      if (attempt < 3) {
+        // Wait before retrying (exponential backoff: 1s, 2s)
+        await new Promise(r => setTimeout(r, attempt * 1000));
+      }
     }
-
-    const fallbackProvider = resolvedProvider === 'groq' ? 'gemini' : 'groq';
-    console.log(`[LLM] Waiting for user approval before fallback`);
-    
-    throw new FallbackRequiredError(
-      resolvedProvider, 
-      fallbackProvider, 
-      `${resolvedProvider === 'groq' ? 'Groq' : 'Gemini'} is currently unavailable.`
-    );
   }
+
+  // If we broke out early because of a key error
+  if (isKeyError) {
+    throw new Error(`Configuration Error: Invalid ${resolvedProvider} API Key`);
+  }
+
+  // Exhausted all 3 attempts
+  const fallbackProvider = resolvedProvider === 'groq' ? 'gemini' : 'groq';
+  console.log(`[LLM] Waiting for user approval before fallback`);
+  
+  throw new FallbackRequiredError(
+    resolvedProvider, 
+    fallbackProvider, 
+    `${resolvedProvider === 'groq' ? 'Groq' : 'Gemini'} is currently unavailable after multiple attempts. Error: ${lastErrorMsg}`
+  );
 }
 
 // Helper to convert error to JSON response in API routes

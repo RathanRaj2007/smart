@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getAppSession } from '@/lib/auth'
 import prisma from '@/lib/db'
-import { formatInterviewerName } from '@/lib/formatters'
+
 
 export async function GET(request: Request) {
   try {
@@ -71,28 +71,35 @@ export async function GET(request: Request) {
           status: true,
         },
       }),
-      prisma.user.findMany({
-        where: { role: 'INTERVIEWER' },
-        select: {
-          id: true,
-          username: true,
-          email: true,
-          candidate: { select: { name: true } },
-          createdAt: true,
-          _count: {
-            select: { sessions: true },
-          },
-          sessions: {
-            select: {
-              id: true,
-              status: true,
-              score: true,
-            },
-          },
-        },
-        orderBy: { createdAt: 'desc' },
-        take: 20,
-      }),
+      prisma.$queryRaw<
+        Array<{
+          id: number
+          username: string
+          email: string
+          name: string | null
+          createdAt: Date
+          totalSess: bigint
+          compSess: bigint
+          avgSc: number | null
+        }>
+      >`
+        SELECT 
+          u.id,
+          u.username,
+          u.email,
+          c.name,
+          u."createdAt",
+          COUNT(s.id) as "totalSess",
+          COUNT(s.id) FILTER (WHERE s.status = 'completed') as "compSess",
+          AVG(s.score) as "avgSc"
+        FROM "User" u
+        LEFT JOIN "Candidate" c ON c."userId" = u.id
+        LEFT JOIN "InterviewSession" s ON s."interviewerId" = u.id
+        WHERE u.role = 'INTERVIEWER'
+        GROUP BY u.id, c.name
+        ORDER BY u."createdAt" DESC
+        LIMIT 20
+      `,
     ])
 
     // Completion Rate calculation
@@ -166,18 +173,18 @@ export async function GET(request: Request) {
         completedCount: activityMap[date].completed,
       }))
 
-    // Interviewer activity calculation
+    // Interviewer activity calculation using the optimized raw query
     const interviewerPerformance = interviewers.map((user) => {
-      const totalSess = user._count.sessions
-      const compSess = user.sessions.filter((s) => s.status === 'completed').length
-      const scoredSess = user.sessions.filter((s) => s.score !== null)
-      const avgSc = scoredSess.length > 0
-        ? Math.round((scoredSess.reduce((acc, curr) => acc + (curr.score || 0), 0) / scoredSess.length) * 10) / 10
-        : null
+      const totalSess = Number(user.totalSess)
+      const compSess = Number(user.compSess)
+      const avgSc = user.avgSc !== null ? Math.round(Number(user.avgSc) * 10) / 10 : null
+      
+      // formatInterviewerName fallback logic since we don't have the full nested candidate object natively
+      const usernameFormat = user.name || user.username || user.email?.split('@')[0] || 'Unknown'
 
       return {
         id: user.id,
-        username: formatInterviewerName(user),
+        username: usernameFormat,
         totalInterviews: totalSess,
         completedInterviews: compSess,
         averageScore: avgSc,
