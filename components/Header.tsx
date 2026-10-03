@@ -64,7 +64,6 @@ export const Header = ({ username = 'User', role = 'INTERVIEWER' }: HeaderProps)
           )}
           <button className="icon-btn notification-btn" title="Notifications">
             <Icon name="notifications" />
-            <span className="badge">1</span>
           </button>
           <button className="icon-btn" onClick={handleLogout} title="Logout">
             <Icon name="logout" />

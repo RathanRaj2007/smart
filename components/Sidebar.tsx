@@ -57,10 +57,6 @@ export const Sidebar = ({ role = 'INTERVIEWER' }: SidebarProps) => {
                     <Icon name={item.icon} size={20} />
                   </div>
                   {!collapsed && <span className="nav-text" style={{ flex: 1 }}>{item.text}</span>}
-                  
-                  {!collapsed && item.href === '/suggestions' && (
-                    <span style={{ background: '#6366f1', color: 'var(--color-text-primary)', fontSize: '0.7rem', padding: '2px 6px', borderRadius: '12px', fontWeight: 600 }}>12</span>
-                  )}
                 </Link>
               </li>
             )
