@@ -149,12 +149,11 @@ export default function RegisterPage() {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed to create account')
 
-      // Transition to OTP step in-page
-      setRegisteredEmail(data.email || trimmedEmail)
-      setStage('otp')
-      setResendCooldown(60)
-      setSuccessMsg(data.message || 'Account created! Check your email for the verification code.')
-      setOtpDigits(['', '', '', '', '', ''])
+      // Redirect to login page
+      setSuccessMsg(data.message || 'Account created successfully! Redirecting to login...')
+      setTimeout(() => {
+        router.push('/login')
+      }, 1500)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to create account')
     } finally {

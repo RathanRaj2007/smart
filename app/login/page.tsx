@@ -195,7 +195,9 @@ export default function LoginPage() {
 
       if (!res.ok) throw new Error(data.error || 'Sign in failed')
 
-      if (data.otpRequired) {
+      if (data.redirect) {
+        router.push(data.redirect)
+      } else if (data.otpRequired) {
         setVerifiedEmail(data.email)
         setStage('otp')
         setResendCooldown(60)
@@ -229,11 +231,11 @@ export default function LoginPage() {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed to set password')
 
-      setVerifiedEmail(data.email || setPasswordEmail)
-      setStage('otp')
-      setResendCooldown(60)
-      setSuccessMsg(data.message || 'Password set! Check your email for the verification code.')
-      setOtpDigits(['', '', '', '', '', ''])
+      // Handle success and redirect directly
+      setSuccessMsg(data.message || 'Password set! Redirecting...')
+      if (data.redirect) {
+        setTimeout(() => router.push(data.redirect), 1000)
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to set password.')
     } finally {

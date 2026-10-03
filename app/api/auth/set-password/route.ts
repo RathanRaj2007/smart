@@ -95,36 +95,23 @@ export async function POST(request: Request) {
       data: { passwordHash },
     });
 
-    // Invalidate any previous unused OTPs for this email
-    await prisma.otpVerification.updateMany({
-      where: { email: normalizedEmail, usedAt: null },
-      data: { usedAt: new Date() },
+    // Create session immediately
+    const auth = await import('@/lib/auth');
+    const redirectUrl = user.role === 'CANDIDATE' ? '/candidate' : '/dashboard';
+    const response = NextResponse.json({
+      success: true,
+      redirect: redirectUrl,
+      message: 'Password set successfully! Logging you in...',
     });
-
-    // Generate and send OTP so they can verify immediately
-    const otp = generateSecureOtp();
-    const otpHash = hashOtp(otp);
-
-    await prisma.otpVerification.create({
-      data: {
-        userId: user.id,
-        email: normalizedEmail,
-        otpHash,
-        expiresAt: new Date(Date.now() + 5 * 60 * 1000),
-        attempts: 0,
-      },
-    });
-
-    try {
-      await sendOtpEmail({
-        email: normalizedEmail,
-        otp,
-        role: user.role as 'CANDIDATE' | 'INTERVIEWER',
-      });
-    } catch (mailErr) {
-      console.error('[set-password] Failed to send OTP:', mailErr);
-    }
-
+    
+    const session = await auth.getAppSession(request, response);
+    session.userId = user.id;
+    session.username = user.username;
+    session.role = user.role;
+    session.instanceId = auth.getServerInstanceId();
+    session.isLoggedIn = true;
+    await session.save();
+    
     const auditAction =
       role === 'CANDIDATE' ? 'CANDIDATE_PASSWORD_SET' : 'INTERVIEWER_PASSWORD_SET';
     createAuditLog({
@@ -135,13 +122,7 @@ export async function POST(request: Request) {
       metadata: { role, email: normalizedEmail },
     });
 
-    return NextResponse.json({
-      success: true,
-      otpRequired: true,
-      email: normalizedEmail,
-      role: user.role,
-      message: 'Password set successfully. A verification code has been sent to your email.',
-    });
+    return response;
   } catch (err) {
     console.error('set-password error:', err);
     return NextResponse.json({ error: 'Internal server error.' }, { status: 500 });

@@ -129,55 +129,26 @@ export async function POST(request: Request) {
       )
     }
 
-    // Password correct — generate and send OTP; do NOT create session yet
-    const emailToUse = user.email || user.username
-    const normalizedEmail = emailToUse.trim().toLowerCase()
+    // Password correct — generate session directly (OTP REMOVED)
+    const redirectUrl = user.role === 'CANDIDATE' ? '/candidate' : '/dashboard'
+    const response = NextResponse.json({ success: true, redirect: redirectUrl })
+    const session = await getAppSession(request, response)
+    session.userId = user.id
+    session.username = user.username
+    session.role = user.role
+    session.instanceId = getServerInstanceId()
+    session.isLoggedIn = true
+    await session.save()
 
-    // Invalidate any previous unused OTPs for this email
-    await prisma.otpVerification.updateMany({
-      where: { email: normalizedEmail, usedAt: null },
-      data: { usedAt: new Date() },
-    })
-
-    const otp = generateSecureOtp()
-    const otpHash = hashOtp(otp)
-
-    await prisma.otpVerification.create({
-      data: {
-        userId: user.id,
-        email: normalizedEmail,
-        otpHash,
-        expiresAt: new Date(Date.now() + 5 * 60 * 1000),
-        attempts: 0,
-      },
-    })
-
-    try {
-      await sendOtpEmail({
-        email: normalizedEmail,
-        otp,
-        role: user.role as 'CANDIDATE' | 'INTERVIEWER',
-      })
-    } catch (mailErr) {
-      console.error('[login] Failed to send OTP email:', mailErr)
-    }
-
-    const auditAction =
-      user.role === 'CANDIDATE' ? 'CANDIDATE_PASSWORD_VERIFIED' : 'INTERVIEWER_PASSWORD_VERIFIED'
     createAuditLog({
       userId: user.id,
       username: user.username,
-      action: auditAction,
+      action: 'AUTH_LOGIN_SUCCESS',
       status: 'SUCCESS',
-      metadata: { role: user.role, email: normalizedEmail },
+      metadata: { role: user.role },
     })
 
-    return NextResponse.json({
-      otpRequired: true,
-      email: normalizedEmail,
-      role: user.role,
-      message: 'Password verified. A 6-digit code has been sent to your email.',
-    })
+    return response
   } catch (error) {
     console.error('Login error:', error)
     return NextResponse.json(

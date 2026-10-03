@@ -94,37 +94,10 @@ export async function POST(request: Request) {
       });
     }
 
-    // Generate and send initial OTP for immediate email verification
-    const otp = generateSecureOtp();
-    const otpHash = hashOtp(otp);
-
-    await prisma.otpVerification.create({
-      data: {
-        userId: newUser.id,
-        email: emailInput,
-        otpHash,
-        expiresAt: new Date(Date.now() + 5 * 60 * 1000),
-        attempts: 0,
-      },
-    });
-
-    try {
-      await sendOtpEmail({
-        email: emailInput,
-        otp,
-        role: assignedRole,
-      });
-    } catch (mailErr) {
-      console.error('Failed to send initial OTP on registration:', mailErr);
-    }
-
     return NextResponse.json(
       {
         success: true,
-        otpRequired: true,
-        email: emailInput,
-        role: assignedRole,
-        message: 'Account created. A 6-digit verification code has been sent to your email.',
+        message: 'Account created successfully! You can now log in.',
       },
       { status: 201 }
     );
