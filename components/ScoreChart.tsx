@@ -25,15 +25,15 @@ ChartJS.register(
   Legend
 )
 
-export const ScoreChart = () => {
+export const ScoreChart = ({ labels, data: chartData }: { labels?: string[], data?: number[] }) => {
   const chartRef = useRef<ChartJS<'line'>>(null)
 
   const data = {
-    labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+    labels: labels && labels.length > 0 ? labels : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
     datasets: [
       {
         label: 'Avg Candidate Score',
-        data: [72, 75, 78, 85, 82, 88, 89],
+        data: chartData && chartData.length > 0 ? chartData : [72, 75, 78, 85, 82, 88, 89],
         borderColor: '#6366f1', // var(--color-indigo)
         backgroundColor: 'rgba(99, 102, 241, 0.1)',
         borderWidth: 2,

@@ -15,7 +15,7 @@ export default async function DashboardPage() {
   }
 
   // Fetch real data from DB in parallel
-  const [totalSessions, completedSessions, activeSessions, recentSessions] = await Promise.all([
+  const [totalSessions, completedSessions, activeSessions, recentSessions, recentReports] = await Promise.all([
     prisma.interviewSession.count({ where: { interviewerId: userId } }),
     prisma.interviewSession.count({ where: { status: 'completed', interviewerId: userId } }),
     prisma.interviewSession.findMany({ where: { status: 'active', interviewerId: userId }, include: { candidate: true } }),
@@ -24,8 +24,23 @@ export default async function DashboardPage() {
       orderBy: { startedAt: 'desc' },
       take: 5,
       include: { candidate: true, report: true }
+    }),
+    prisma.interviewReport.findMany({
+      where: { session: { interviewerId: userId } },
+      orderBy: { createdAt: 'desc' },
+      take: 7,
+      include: { session: { include: { candidate: true } } }
     })
   ])
+
+  // Prepare chart data (chronological order)
+  const chartReports = [...recentReports].reverse();
+  const chartLabels = chartReports.length > 0 
+    ? chartReports.map(r => r.session?.candidate?.name?.split(' ')[0] || 'Unknown') 
+    : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const chartData = chartReports.length > 0 
+    ? chartReports.map(r => Math.round(r.overallScore)) 
+    : [72, 75, 78, 85, 82, 88, 89];
 
   return (
     <section className="screen active" style={{ padding: '1.5rem 2rem', maxWidth: '1600px', margin: '0 auto' }}>
@@ -62,7 +77,7 @@ export default async function DashboardPage() {
           </div>
           <div style={{ flex: 1, padding: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <div style={{ width: '100%', height: '100%', minHeight: '300px' }}>
-              <ScoreChartWrapper />
+              <ScoreChartWrapper labels={chartLabels} data={chartData} />
             </div>
           </div>
         </div>
